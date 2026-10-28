@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "AIVES Demo",
+    "name": "AIVES",
     "slug": "aives-mobile",
     "version": "1.0.0",
     "orientation": "default",
@@ -11,10 +11,9 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#2563eb",
+        "foregroundImage": "./assets/aives-foreground.png",
+        "monochromeImage": "./assets/aives-foreground.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "vn.aives.mobile.demo",
@@ -22,6 +21,9 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-font"
+    ]
   }
 }

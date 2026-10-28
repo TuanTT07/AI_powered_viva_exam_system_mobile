@@ -1,135 +1,425 @@
-import { useState } from "react";
-import { Keyboard, Text, TextInput, View } from "react-native";
-import { Badge, Button, Notice, Page, State } from "../../components/ui";
+import { useEffect } from "react";
 import {
-  day,
-  DEMO_CODE,
-  exams,
-  labels,
-  lookupSlot,
-  time,
-  type Scenario,
-  type Slot,
-} from "../schedule/model";
-import { colors, ui } from "../../theme";
+  BackHandler,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
+import { Icon } from "../../components/ui/Icon";
+import { Brand } from "../../components/ui/Brand";
+import { day, labels, time, type Slot } from "../schedule/model";
+import { useStudentOverview } from "./use-student-overview";
+import {
+  Action,
+  Empty,
+  palette,
+  Reveal,
+  s,
+  Surface,
+  Type,
+} from "../../components/ui/mobile";
+
+const tabs = [
+  { id: "schedule", label: "Lịch thi", icon: "calendar" },
+  { id: "grades", label: "Điểm", icon: "score" },
+  { id: "profile", label: "Hồ sơ", icon: "profile" },
+] as const;
 export function StudentScheduleScreen({
   slots,
-  scenario,
-  onReset,
+  onExit,
 }: {
   slots: Slot[];
-  scenario: Scenario;
-  onReset: () => void;
+  onExit: () => void;
 }) {
-  const [code, setCode] = useState(""),
-    [submitted, setSubmitted] = useState(false),
-    [error, setError] = useState("");
-  const slot = submitted ? lookupSlot(slots, code) : undefined;
-  const submit = () => {
-    Keyboard.dismiss();
-    if (!code.trim()) {
-      setError("Vui lòng nhập mã kỳ thi.");
-      setSubmitted(false);
-      return;
-    }
-    setError("");
-    setSubmitted(true);
-  };
+  const {
+    tab,
+    filter,
+    selected,
+    item,
+    visible,
+    items,
+    setSelected,
+    setFilter,
+    selectTab,
+  } = useStudentOverview(slots);
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (selected) setSelected("");
+      else if (tab !== "schedule") selectTab("schedule");
+      else onExit();
+      return true;
+    });
+    return () => sub.remove();
+  }, [selected, tab, onExit, setSelected, selectTab]);
+  const results = items.filter((entry) => entry.released);
   return (
-    <Page>
-      <Text style={ui.small}>KHÔNG GIAN SINH VIÊN</Text>
-      <Text accessibilityRole="header" aria-level={1} style={ui.h1}>
-        Lịch thi của bạn
-      </Text>
-      <Text style={ui.muted}>
-        Xin chào Đức Anh. Tra cứu ca vấn đáp được phân công bằng mã kỳ thi.
-      </Text>
-      <View style={ui.hero}>
-        <Text style={[ui.small, { color: "#c4d4ff" }]}>SINH VIÊN DEMO</Text>
-        <Text style={[ui.h2, ui.white]}>Nguyễn Đức Anh</Text>
-        <Text style={[ui.text, { color: "#d8e3ff" }]}>SE190163</Text>
-      </View>
-      <Notice>Dữ liệu demo · Lịch và trạng thái chỉ để xem thử.</Notice>
-      <View style={ui.card}>
-        <Text style={ui.h2}>Tra cứu kỳ thi</Text>
-        <Text style={ui.muted}>Nhập mã UUID do giảng viên cung cấp.</Text>
-        <Text style={ui.label}>Mã kỳ thi</Text>
-        <TextInput
-          accessibilityLabel="Mã kỳ thi"
-          placeholder="Nhập mã kỳ thi"
-          placeholderTextColor={colors.muted}
-          value={code}
-          onChangeText={(value) => {
-            setCode(value);
-            setSubmitted(false);
-            setError("");
-          }}
-          autoCapitalize="none"
-          autoCorrect={false}
-          maxLength={120}
-          returnKeyType="search"
-          onSubmitEditing={submit}
-          style={ui.input}
-        />
-        {error ? (
-          <Text accessibilityRole="alert" style={ui.error}>
-            {error}
-          </Text>
-        ) : null}
-        <Button label="Tra cứu ca thi" onPress={submit} />
-        <Button
-          secondary
-          label="Dùng mã mẫu"
-          onPress={() => {
-            setCode(DEMO_CODE);
-            setSubmitted(true);
-            setError("");
-            Keyboard.dismiss();
-          }}
-        />
-      </View>
-      {scenario !== "ready" ? (
-        <State kind={scenario} onRetry={onReset} />
-      ) : submitted && !slot ? (
-        <View style={ui.card}>
-          <Text accessibilityRole="header" style={ui.h2}>
-            Không tìm thấy ca thi
-          </Text>
-          <Text style={ui.muted}>
-            Mã kỳ thi chưa tồn tại trong demo hoặc bạn chưa được xếp ca. Kiểm
-            tra lại mã hoặc chọn “Dùng mã mẫu”.
-          </Text>
+    <View style={styles.root}>
+      <View style={styles.brandRow}>
+        <Brand />
+        <View style={styles.role}>
+          <Type style={s.eyebrow}>SINH VIÊN</Type>
         </View>
-      ) : slot ? (
-        <View style={ui.card}>
-          <View style={ui.spread}>
-            <Text style={ui.small}>CA THI CÁ NHÂN</Text>
-            <Badge label={labels[slot.status]} />
-          </View>
-          <Text accessibilityRole="header" style={ui.h2}>
-            {exams.find((e) => e.id === slot.examId)?.title}
-          </Text>
-          <Text style={ui.muted}>INT2204 · Lập trình Java</Text>
-          <View style={[ui.divider, { gap: 8 }]}>
-            <Text style={ui.text}>{day(slot.scheduledStartTime)}</Text>
-            <Text style={[ui.h1, { color: colors.blue }]}>
-              {time(slot.scheduledStartTime)} – {time(slot.scheduledEndTime)}
-            </Text>
-            <Text style={ui.text}>
-              Số thứ tự {String(slot.slotNumber).padStart(2, "0")} · Giờ Việt
-              Nam (UTC+7)
-            </Text>
-          </View>
-          <Notice>
-            Có mặt trước ca thi 10 phút. Chuẩn bị micro, tai nghe và kết nối ổn
-            định. Bản demo chưa hỗ trợ vào thi.
-          </Notice>
+      </View>
+      <ScrollView
+        key={`${tab}-${selected}`}
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Reveal>
+          {selected && item ? (
+            <>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Quay lại"
+                onPress={() => setSelected("")}
+                style={styles.back}
+              >
+                <Icon name="back" />
+                <Type style={{ color: palette.blue }}>Quay lại</Type>
+              </Pressable>
+              <View style={s.section}>
+                <Type style={s.eyebrow}>CHI TIẾT KỲ THI</Type>
+                <Type accessibilityRole="header" aria-level={1} style={s.h1}>
+                  {item.exam.title}
+                </Type>
+                <Type style={s.muted}>
+                  {item.exam.courseCode} · {item.exam.courseName}
+                </Type>
+              </View>
+              <Surface>
+                <View style={styles.status}>
+                  <Type style={{ color: palette.blue }}>
+                    {labels[item.slot.status]}
+                  </Type>
+                </View>
+                <Type style={s.h2}>{day(item.slot.scheduledStartTime)}</Type>
+                <View style={[s.row, { flexWrap: "wrap" }]}>
+                  <Icon name="clock" />
+                  <Type style={[s.h1, { color: palette.blue, fontSize: 27 }]}>
+                    {time(item.slot.scheduledStartTime)} –{" "}
+                    {time(item.slot.scheduledEndTime)}
+                  </Type>
+                </View>
+                <View style={s.rule} />
+                <Type>Số thứ tự · {item.slot.slotNumber}</Type>
+                <Type style={s.detailLabel}>Giờ Việt Nam · UTC+7</Type>
+              </Surface>
+              {item.released && (
+                <Surface>
+                  <Type style={s.eyebrow}>ĐIỂM ĐÃ CÔNG BỐ</Type>
+                  <Type style={s.h1}>
+                    {item.released.score.toFixed(1)}
+                    <Type style={s.muted}> / 10</Type>
+                  </Type>
+                  {!!item.released.comment && (
+                    <Type>{item.released.comment}</Type>
+                  )}
+                </Surface>
+              )}
+            </>
+          ) : tab === "schedule" ? (
+            <>
+              <View style={s.section}>
+                <Type style={s.eyebrow}>LỊCH CỦA BẠN</Type>
+                <Type accessibilityRole="header" aria-level={1} style={s.h1}>
+                  Lịch thi
+                </Type>
+                <Type style={s.muted}>Các ca thi được phân công.</Type>
+              </View>
+              <View style={styles.filters}>
+                {(["upcoming", "history"] as const).map((id) => (
+                  <Pressable
+                    key={id}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: filter === id }}
+                    aria-pressed={filter === id}
+                    onPress={() => setFilter(id)}
+                    style={[
+                      styles.filter,
+                      filter === id && styles.activeFilter,
+                    ]}
+                  >
+                    <Type
+                      style={{
+                        color: filter === id ? palette.blue : "#475569",
+                        fontFamily: "JakartaBold",
+                      }}
+                    >
+                      {id === "upcoming" ? "Sắp tới" : "Đã qua"}
+                    </Type>
+                  </Pressable>
+                ))}
+              </View>
+              {visible.length ? (
+                visible.map((entry) => (
+                  <Surface key={entry.slot.attemptId}>
+                    <Type style={s.eyebrow}>{entry.exam.courseCode}</Type>
+                    <Type style={s.h2}>{entry.exam.title}</Type>
+                    <View style={s.row}>
+                      <Icon name="calendar" size={20} />
+                      <Type style={{ flex: 1 }}>
+                        {day(entry.slot.scheduledStartTime)}
+                      </Type>
+                    </View>
+                    <Type style={[s.h2, { color: palette.blue }]}>
+                      {time(entry.slot.scheduledStartTime)} –{" "}
+                      {time(entry.slot.scheduledEndTime)}
+                    </Type>
+                    <Type style={s.muted}>{labels[entry.slot.status]}</Type>
+                    <Action
+                      label="Chi tiết ca thi"
+                      onPress={() => setSelected(entry.slot.attemptId)}
+                    />
+                  </Surface>
+                ))
+              ) : (
+                <Empty
+                  icon="calendar"
+                  title="Chưa có dữ liệu lịch thi"
+                  description="Lịch thi sẽ hiển thị khi ứng dụng kết nối hệ thống."
+                />
+              )}
+              <View style={styles.note}>
+                <Icon name="clock" size={18} color={palette.muted} />
+                <Type style={[s.detailLabel, { flex: 1 }]}>
+                  Lịch thi hiển thị theo giờ Việt Nam (UTC+7).
+                </Type>
+              </View>
+            </>
+          ) : tab === "grades" ? (
+            <>
+              <View style={s.section}>
+                <Type style={s.eyebrow}>KẾT QUẢ HỌC TẬP</Type>
+                <Type accessibilityRole="header" aria-level={1} style={s.h1}>
+                  Điểm thi
+                </Type>
+                <Type style={s.muted}>Kết quả đã được công bố.</Type>
+              </View>
+              {results.length ? (
+                results.map((entry) => (
+                  <Surface key={entry.slot.attemptId}>
+                    <Type style={s.eyebrow}>{entry.exam.courseCode}</Type>
+                    <Type style={s.h2}>{entry.exam.title}</Type>
+                    <Type style={[s.h1, { color: palette.blue }]}>
+                      {entry.released!.score.toFixed(1)}
+                      <Type style={s.muted}> / 10</Type>
+                    </Type>
+                    <Action
+                      secondary
+                      label="Xem kết quả"
+                      onPress={() => setSelected(entry.slot.attemptId)}
+                    />
+                  </Surface>
+                ))
+              ) : (
+                <Empty
+                  icon="score"
+                  title="Chưa có dữ liệu điểm"
+                  description="Điểm đã công bố sẽ xuất hiện tại đây khi kết nối hệ thống."
+                />
+              )}
+            </>
+          ) : (
+            <>
+              <View style={s.section}>
+                <Type style={s.eyebrow}>TÀI KHOẢN</Type>
+                <Type accessibilityRole="header" aria-level={1} style={s.h1}>
+                  Hồ sơ
+                </Type>
+              </View>
+              <Surface>
+                <View style={s.row}>
+                  <View style={styles.avatar}>
+                    <Icon name="profile" size={30} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Type style={s.h2}>Chưa đăng nhập</Type>
+                    <Type style={s.muted}>Hồ sơ sinh viên</Type>
+                  </View>
+                </View>
+                <View style={s.rule} />
+                {["Họ và tên", "Mã sinh viên", "Email"].map((label) => (
+                  <View style={s.section} key={label}>
+                    <Type style={s.detailLabel}>{label}</Type>
+                    <Type accessibilityLabel={`${label}: chưa có thông tin`}>
+                      —
+                    </Type>
+                  </View>
+                ))}
+              </Surface>
+              <Surface>
+                <View style={s.row}>
+                  <Icon name="lock" />
+                  <Type style={s.h2}>Bảo mật</Type>
+                </View>
+                <Action
+                  secondary
+                  label="Đổi mật khẩu"
+                  icon="lock"
+                  disabled
+                  onPress={() => {}}
+                />
+                <Type style={s.detailLabel}>
+                  Khả dụng sau khi kết nối đăng nhập.
+                </Type>
+              </Surface>
+              <Action
+                secondary
+                label="Đăng xuất"
+                icon="exit"
+                onPress={onExit}
+              />
+            </>
+          )}
+        </Reveal>
+      </ScrollView>
+      <View style={styles.connection}>
+        <View style={styles.dot} />
+        <Type style={s.detailLabel}>Chưa kết nối hệ thống</Type>
+      </View>
+      <View style={styles.navOuter}>
+        <View accessibilityRole="tablist" style={styles.nav}>
+          {tabs.map((entry) => (
+            <Pressable
+              key={entry.id}
+              accessibilityRole="tab"
+              accessibilityLabel={entry.label}
+              accessibilityState={{ selected: tab === entry.id }}
+              aria-selected={tab === entry.id}
+              onPress={() => selectTab(entry.id)}
+              style={({ pressed }) => [
+                styles.navItem,
+                tab === entry.id && styles.navActive,
+                { opacity: pressed ? 0.7 : 1 },
+              ]}
+            >
+              <Icon
+                name={entry.icon}
+                color={tab === entry.id ? palette.blue : palette.muted}
+                size={23}
+              />
+              <Type
+                style={[
+                  styles.navLabel,
+                  { color: tab === entry.id ? palette.blue : palette.muted },
+                ]}
+              >
+                {entry.label}
+              </Type>
+            </Pressable>
+          ))}
         </View>
-      ) : (
-        <Text style={ui.small}>
-          Chưa có mã? Chạm “Dùng mã mẫu” để xem ca thi minh họa.
-        </Text>
-      )}
-    </Page>
+      </View>
+    </View>
   );
 }
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: palette.canvas },
+  brandRow: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  role: {
+    backgroundColor: palette.soft,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: 28,
+    paddingBottom: 24,
+    width: "100%",
+    maxWidth: 620,
+    alignSelf: "center",
+  },
+  filters: {
+    flexDirection: "row",
+    padding: 5,
+    backgroundColor: "#edf2f8",
+    borderRadius: 24,
+    gap: 4,
+  },
+  filter: {
+    minHeight: 48,
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  activeFilter: {
+    backgroundColor: "#fff",
+    boxShadow: "0 3px 10px rgba(15,23,42,.035)",
+  },
+  note: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    paddingHorizontal: 8,
+  },
+  avatar: {
+    width: 64,
+    height: 64,
+    backgroundColor: palette.soft,
+    borderRadius: 23,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  connection: {
+    paddingHorizontal: 20,
+    paddingVertical: 6,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 7,
+  },
+  dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: palette.muted },
+  navOuter: { paddingHorizontal: 16, paddingBottom: 12, paddingTop: 4 },
+  nav: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    padding: 6,
+    borderRadius: 30,
+    gap: 4,
+    boxShadow: "0 6px 24px rgba(15,23,42,.06)",
+  },
+  navItem: {
+    flex: 1,
+    minHeight: 64,
+    paddingHorizontal: 4,
+    paddingVertical: 10,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  navActive: { backgroundColor: palette.soft },
+  navLabel: { fontFamily: "JakartaBold", fontSize: 11, lineHeight: 18 },
+  back: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    alignSelf: "flex-start",
+    paddingRight: 16,
+  },
+  status: {
+    backgroundColor: palette.soft,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    alignSelf: "flex-start",
+  },
+});
