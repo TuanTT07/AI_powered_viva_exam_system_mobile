@@ -140,8 +140,8 @@ export function State({
             accessibilityLabel="Đang tải"
             color={colors.blue}
           />
-          <Text style={ui.h3}>Đang tải lịch demo…</Text>
-          <Button secondary label="Kết thúc mô phỏng tải" onPress={onRetry} />
+          <Text style={ui.h3}>Đang tải lịch thi…</Text>
+          <Button secondary label="Xem lịch" onPress={onRetry} />
         </>
       ) : (
         <>
@@ -151,12 +151,9 @@ export function State({
           <Text style={ui.muted}>
             {kind === "empty"
               ? "Lịch thi sẽ xuất hiện khi được phân công."
-              : "Đây là lỗi kết nối mô phỏng. Thử lại để xem dữ liệu mẫu."}
+              : "Kiểm tra kết nối và thử lại."}
           </Text>
-          <Button
-            label={kind === "empty" ? "Xem dữ liệu mẫu" : "Thử lại"}
-            onPress={onRetry}
-          />
+          <Button label="Thử lại" onPress={onRetry} />
         </>
       )}
     </View>

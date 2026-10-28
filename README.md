@@ -1,48 +1,27 @@
-# AIVES Mobile — Android UI demo
+# AIVES Mobile
 
-Expo / React Native / TypeScript. Sinh viên tra cứu ca; giảng viên tìm/lọc và đổi ca. **Chỉ dữ liệu demo, không nối API.**
+React Native / Expo / TypeScript. Giao diện lịch thi sinh viên và giảng viên. Chưa nối API; không có dữ liệu mẫu hoặc phiên mô phỏng.
 
 ## Chạy
 
 ```sh
 npm ci
-npm run web
-npm start
+npm run android
 ```
 
-Web preview: Expo sẽ in URL local. Android Studio: Device Manager → tạo/chạy Android Virtual Device, sau đó `npm run android`. Máy thật dùng Expo Go tương thích SDK 58 hoặc APK release.
+Android Studio: mở `android/`, chạy máy ảo từ Device Manager. `npm run android` tự nhận Android SDK mặc định và JDK 21 trên macOS. Kiểm tra môi trường bằng `npm run android:check`. SDK khác đường dẫn mặc định thì đặt `ANDROID_HOME`.
 
-## Android Studio và APK
+Web: `npm run web`. Sinh viên có ba tab **Lịch thi · Điểm · Hồ sơ**, bộ lọc Sắp tới/Đã qua và giao diện theo bảng màu web AIVES. Giảng viên có danh sách kỳ thi (chưa thiết kế lại). Khi chưa có nguồn dữ liệu, ứng dụng hiển thị trạng thái chưa kết nối; không tự điền hồ sơ hay điểm. Đổi mật khẩu bị khóa cho tới khi có đăng nhập thật. Chọn vai trò chỉ điều hướng UI, không phải đăng nhập hay phân quyền.
 
-Native project đã được sinh ở `android/`; mở thư mục này bằng Android Studio. Cấu hình Android SDK và JDK 21. Không chỉnh các giá trị máy cá nhân vào Git.
-
-```sh
-npx expo prebuild --platform android
-cd android
-./gradlew assembleRelease
-```
-
-APK: `android/app/build/outputs/apk/release/app-release.apk`. Bản release demo dùng debug signing của template để cài thử, không dùng để phát hành store. `assembleDebug` cần Metro; `assembleRelease` nhúng JS và chạy độc lập.
-
-## Dùng thử
-
-- Chọn Sinh viên → Dùng mã mẫu → ca 08:00–08:20 ngày 02/11/2026.
-- Mã mẫu: `11111111-1111-4111-8111-111111111111`.
-- Giảng viên → Java → ca Nguyễn Đức Anh → Đổi ca → nhập `2026-11-02`, `11:00`, `11:20` → xem lại → xác nhận.
-- Kịch bản: Có dữ liệu / Đang tải / Trống / Lỗi. Retry trả về dữ liệu.
-- Đổi vai trò giữ thay đổi trong cùng phiên. Reload/khởi động lại phục hồi dữ liệu gốc.
-- Thời gian: Asia/Ho_Chi_Minh (UTC+7). Không có phòng thi giả, gửi mail, push, đăng nhập thật hay vào Viva.
-
-## Kiểm tra
+## Build và kiểm tra
 
 ```sh
 npm run typecheck
 npm test
 npm run build
+npx expo prebuild --platform android
+cd android
+./gradlew assembleRelease
 ```
 
-Báo cáo browser: `.context/ui-test-report.html`. Xem docs/VALIDATION.md cho các giới hạn Android và kiểm tra đã thực hiện.
-
-## Terminal Android Studio không tìm thấy emulator
-
-`npm run android` tự thêm Android SDK mặc định và JDK 21 vào môi trường của tiến trình, không cần sửa shell toàn máy. Kiểm tra bằng `npm run android:check`. Nếu có SDK ở đường dẫn khác, đặt `ANDROID_HOME` trước khi chạy. Mở Device Manager và chạy `AIVES_Demo_API36` nếu chưa có thiết bị.
+APK cài thử: `artifacts/AIVES.apk` (debug signing, chưa phát hành store). Không có API, lưu dữ liệu, ghi âm, chấm điểm hoặc thông báo. Không dùng các báo cáo UI cũ làm bằng chứng cho phiên bản hiện tại; báo cáo mới ở `.context/ui-test-report.html`.

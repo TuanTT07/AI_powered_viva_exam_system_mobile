@@ -84,7 +84,6 @@ export function LecturerScheduleScreen({
   return (
     <Page key={`${examId}-${selected}-${editing}-${confirm}`}>
       {examId ? <Button secondary label="← Quay lại" onPress={back} /> : null}
-      <Text style={ui.small}>KHÔNG GIAN GIẢNG VIÊN</Text>
       <Text accessibilityRole="header" aria-level={1} style={ui.h1}>
         {editing
           ? confirm
@@ -96,9 +95,6 @@ export function LecturerScheduleScreen({
               ? "Lịch thí sinh"
               : "Kỳ thi phụ trách"}
       </Text>
-      <Notice>
-        Dữ liệu demo · Thay đổi chỉ lưu trong bộ nhớ, chưa lưu lên hệ thống.
-      </Notice>
       {feedback ? (
         <View style={[ui.banner, { backgroundColor: "#e4f6ef" }]}>
           <Text
@@ -132,17 +128,14 @@ export function LecturerScheduleScreen({
               <Text style={ui.text}>
                 {date} · {start} – {end} (UTC+7)
               </Text>
-              <Notice>
-                Xác nhận sẽ cập nhật ca trong bản demo. Không gửi thông báo và
-                không lưu lên hệ thống.
-              </Notice>
+              <Notice>Xác nhận đổi thời gian ca thi.</Notice>
               <Button
-                label="Xác nhận đổi ca demo"
+                label="Xác nhận đổi ca"
                 onPress={() => {
                   try {
                     changeSlot(selected, date, start, end);
                     setFeedback(
-                      `Đã đổi ca demo: ${slot.studentName} · ${start} – ${end}. Chưa lưu lên hệ thống.`,
+                      `Đã đổi ca: ${slot.studentName} · ${start} – ${end}.`,
                     );
                     setEditing(false);
                     setConfirm(false);
@@ -169,7 +162,7 @@ export function LecturerScheduleScreen({
                 value={date}
                 onChangeText={setDate}
                 maxLength={10}
-                placeholder="2026-11-02"
+                placeholder="YYYY-MM-DD"
                 placeholderTextColor={colors.muted}
               />
               <Text style={ui.label}>Giờ bắt đầu (HH:mm)</Text>
@@ -179,7 +172,7 @@ export function LecturerScheduleScreen({
                 value={start}
                 onChangeText={setStart}
                 maxLength={5}
-                placeholder="11:00"
+                placeholder="HH:mm"
                 placeholderTextColor={colors.muted}
               />
               <Text style={ui.label}>Giờ kết thúc (HH:mm)</Text>
@@ -189,11 +182,11 @@ export function LecturerScheduleScreen({
                 value={end}
                 onChangeText={setEnd}
                 maxLength={5}
-                placeholder="11:20"
+                placeholder="HH:mm"
                 placeholderTextColor={colors.muted}
               />
               <Text style={ui.small}>
-                Giờ Việt Nam (UTC+7). Ví dụ giờ trống: 11:00 – 11:20.
+                Giờ Việt Nam (UTC+7).
               </Text>
               <Button label="Xem lại thay đổi" onPress={review} />
               <Button
@@ -237,9 +230,7 @@ export function LecturerScheduleScreen({
               }}
             />
           ) : (
-            <Notice>
-              Ca đã hủy hoặc đã bắt đầu không hỗ trợ đổi lịch trong bản demo.
-            </Notice>
+            <Notice>Ca đã hủy hoặc đã bắt đầu không thể đổi lịch.</Notice>
           )}
         </View>
       ) : exam ? (
@@ -338,6 +329,11 @@ export function LecturerScheduleScreen({
       ) : (
         <>
           <Text style={ui.muted}>Xem lịch và điều chỉnh từng ca vấn đáp.</Text>
+          {!exams.length ? (
+            <View style={ui.card}>
+              <Text style={ui.muted}>Chưa kết nối dữ liệu kỳ thi.</Text>
+            </View>
+          ) : null}
           {exams.map((e) => (
             <View key={e.id} style={ui.card}>
               <View style={ui.spread}>

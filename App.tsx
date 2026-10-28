@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
+import { useFonts } from "expo-font";
+import { PlusJakartaSans_500Medium } from "@expo-google-fonts/plus-jakarta-sans/500Medium";
+import { PlusJakartaSans_700Bold } from "@expo-google-fonts/plus-jakarta-sans/700Bold";
 import {
-  BackHandler,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Text,
@@ -8,35 +11,56 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { DemoEntryScreen } from "./src/features/auth/demo-entry/DemoEntryScreen";
+import { RoleEntryScreen } from "./src/features/auth/role-entry/RoleEntryScreen";
 import { StudentScheduleScreen } from "./src/features/student-schedule/StudentScheduleScreen";
 import { LecturerScheduleScreen } from "./src/features/lecturer-schedule/LecturerScheduleScreen";
-import { useDemoSchedule } from "./src/features/schedule/use-demo-schedule";
-import type { Scenario } from "./src/features/schedule/model";
-import { Button, Chip } from "./src/components/ui";
+import { useSchedule } from "./src/features/schedule/use-schedule";
+import { Button } from "./src/components/ui";
 import { colors } from "./src/theme";
+import { Brand } from "./src/components/ui/Brand";
 export default function App() {
-  const [role, setRole] = useState<"student" | "lecturer" | null>(null),
-    [scenario, setScenario] = useState<Scenario>("ready"),
-    [tools, setTools] = useState(false);
-  const schedule = useDemoSchedule();
-  useEffect(() => {
-    if (Platform.OS === "web" || role !== "student") return;
-    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      setRole(null);
-      return true;
-    });
-    return () => sub.remove();
-  }, [role]);
+  const [role, setRole] = useState<"student" | "lecturer" | null>(null);
+  const schedule = useSchedule();
+  const [fontsLoaded, fontError] = useFonts({
+    Jakarta: PlusJakartaSans_500Medium,
+    JakartaBold: PlusJakartaSans_700Bold,
+  });
   useEffect(() => {
     if (Platform.OS === "web") {
       document.documentElement.lang = "vi";
-      document.title = "AIVES · Lịch thi demo";
+      document.title = "AIVES · Lịch thi";
     }
   }, []);
+  if (!fontsLoaded)
+    return (
+      <View
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "#f8fafc",
+        }}
+      >
+        {fontError ? (
+          <Text accessibilityRole="alert">
+            Không thể tải phông chữ. Vui lòng mở lại ứng dụng.
+          </Text>
+        ) : (
+          <ActivityIndicator
+            accessibilityLabel="Đang mở AIVES"
+            color="#2563eb"
+          />
+        )}
+      </View>
+    );
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <SafeAreaView
+        style={{
+          flex: 1,
+          backgroundColor: role !== "lecturer" ? "#f8fafc" : colors.bg,
+        }}
+      >
         <StatusBar style="dark" />
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -53,80 +77,42 @@ export default function App() {
           >
             {role ? (
               <>
-                <View
-                  style={{
-                    padding: 12,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    backgroundColor: "#fff",
-                    borderBottomWidth: 1,
-                    borderColor: colors.line,
-                  }}
-                >
-                  <Button
-                    secondary
-                    label="← Đổi vai trò"
-                    onPress={() => {
-                      setRole(null);
-                      setScenario("ready");
-                    }}
-                  />
-                  <Text style={{ fontWeight: "900", color: colors.blue }}>
-                    ✦ AIVES
-                  </Text>
-                  <Button
-                    secondary
-                    label="Kịch bản"
-                    onPress={() => setTools(!tools)}
-                  />
-                </View>
-                {tools ? (
+                {role === "lecturer" && (
                   <View
                     style={{
                       padding: 12,
                       flexDirection: "row",
-                      flexWrap: "wrap",
-                      gap: 8,
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      backgroundColor: "#fff",
+                      borderBottomWidth: 1,
+                      borderColor: colors.line,
                     }}
                   >
-                    {(
-                      [
-                        ["ready", "Có dữ liệu"],
-                        ["loading", "Đang tải"],
-                        ["empty", "Trống"],
-                        ["error", "Lỗi"],
-                      ] as const
-                    ).map(([key, label]) => (
-                      <Chip
-                        key={key}
-                        label={label}
-                        selected={scenario === key}
-                        onPress={() => setScenario(key)}
-                      />
-                    ))}
+                    <Button
+                      secondary
+                      label="← Đổi vai trò"
+                      onPress={() => setRole(null)}
+                    />
+                    <Brand />
                   </View>
-                ) : null}
+                )}
                 {role === "student" ? (
                   <StudentScheduleScreen
                     slots={schedule.slots}
-                    scenario={scenario}
-                    onReset={() => setScenario("ready")}
+                    onExit={() => setRole(null)}
                   />
                 ) : (
                   <LecturerScheduleScreen
                     {...schedule}
-                    onExit={() => {
-                      setRole(null);
-                      setScenario("ready");
-                    }}
-                    scenario={scenario}
-                    onReset={() => setScenario("ready")}
+                    onExit={() => setRole(null)}
+                    scenario="ready"
+                    onReset={() => {}}
                   />
                 )}
               </>
             ) : (
-              <DemoEntryScreen onSelect={setRole} />
+              <RoleEntryScreen onSelect={setRole} />
             )}
           </View>
         </KeyboardAvoidingView>
