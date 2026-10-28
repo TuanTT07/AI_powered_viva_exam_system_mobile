@@ -7,6 +7,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
+import type { AuthUser } from "../auth/auth-model";
 import { Icon } from "../../components/ui/Icon";
 import { Brand } from "../../components/ui/Brand";
 import { day, labels, time, type Slot } from "../schedule/model";
@@ -29,9 +30,15 @@ const tabs = [
 export function StudentScheduleScreen({
   slots,
   onExit,
+  user,
+  onChangePassword,
+  busy,
 }: {
   slots: Slot[];
   onExit: () => void;
+  user: AuthUser;
+  onChangePassword: () => void;
+  busy: boolean;
 }) {
   const {
     tab,
@@ -43,13 +50,13 @@ export function StudentScheduleScreen({
     setSelected,
     setFilter,
     selectTab,
-  } = useStudentOverview(slots);
+  } = useStudentOverview(slots, user.id);
   useEffect(() => {
     if (Platform.OS === "web") return;
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
       if (selected) setSelected("");
       else if (tab !== "schedule") selectTab("schedule");
-      else onExit();
+      else return false;
       return true;
     });
     return () => sub.remove();
@@ -237,16 +244,22 @@ export function StudentScheduleScreen({
                     <Icon name="profile" size={30} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Type style={s.h2}>Chưa đăng nhập</Type>
+                    <Type style={s.h2}>{user.fullName}</Type>
                     <Type style={s.muted}>Hồ sơ sinh viên</Type>
                   </View>
                 </View>
                 <View style={s.rule} />
-                {["Họ và tên", "Mã sinh viên", "Email"].map((label) => (
+                {[
+                  ["Họ và tên", user.fullName],
+                  ["Mã sinh viên", user.userCode],
+                  ["Email", user.email],
+                ].map(([label, value]) => (
                   <View style={s.section} key={label}>
                     <Type style={s.detailLabel}>{label}</Type>
-                    <Type accessibilityLabel={`${label}: chưa có thông tin`}>
-                      —
+                    <Type
+                      accessibilityLabel={`${label}: ${value || "chưa có thông tin"}`}
+                    >
+                      {value || "—"}
                     </Type>
                   </View>
                 ))}
@@ -260,16 +273,17 @@ export function StudentScheduleScreen({
                   secondary
                   label="Đổi mật khẩu"
                   icon="lock"
-                  disabled
-                  onPress={() => {}}
+                  disabled={busy}
+                  onPress={onChangePassword}
                 />
                 <Type style={s.detailLabel}>
-                  Khả dụng sau khi kết nối đăng nhập.
+                  Cập nhật mật khẩu cho tài khoản của bạn.
                 </Type>
               </Surface>
               <Action
                 secondary
-                label="Đăng xuất"
+                disabled={busy}
+                label={busy ? "Đang đăng xuất…" : "Đăng xuất"}
                 icon="exit"
                 onPress={onExit}
               />
@@ -279,7 +293,7 @@ export function StudentScheduleScreen({
       </ScrollView>
       <View style={styles.connection}>
         <View style={styles.dot} />
-        <Type style={s.detailLabel}>Chưa kết nối hệ thống</Type>
+        <Type style={s.detailLabel}>Chưa kết nối dữ liệu kỳ thi</Type>
       </View>
       <View style={styles.navOuter}>
         <View accessibilityRole="tablist" style={styles.nav}>

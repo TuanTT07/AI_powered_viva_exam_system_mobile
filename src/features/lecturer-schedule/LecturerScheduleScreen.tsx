@@ -58,7 +58,7 @@ export function LecturerScheduleScreen({
     if (Platform.OS === "web") return;
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
       if (examId) back();
-      else onExit();
+      else return false;
       return true;
     });
     return () => sub.remove();
@@ -185,9 +185,7 @@ export function LecturerScheduleScreen({
                 placeholder="HH:mm"
                 placeholderTextColor={colors.muted}
               />
-              <Text style={ui.small}>
-                Giờ Việt Nam (UTC+7).
-              </Text>
+              <Text style={ui.small}>Giờ Việt Nam (UTC+7).</Text>
               <Button label="Xem lại thay đổi" onPress={review} />
               <Button
                 secondary

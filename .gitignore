@@ -46,3 +46,8 @@ android/local.properties
 
 # IDE settings
 .idea/
+
+# Runtime environment overrides
+.env
+.env.*
+!.env.example

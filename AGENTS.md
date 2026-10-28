@@ -1,13 +1,13 @@
 # AIVES Mobile
 
-Build the Android schedule app for students and lecturers. Apply ponytail full: minimum working code, no speculative layers. UI-first; never call real APIs in this milestone.
+Build the Android schedule app for students and lecturers. Apply ponytail full: minimum working code, no speculative layers. Authentication API integration is now authorized by the user. Keep other features UI-only until their integration is requested.
 
 ## Architecture
 
 - App composes screens. Feature logic stays inside src/features.
 - Screens use feature hooks; shared UI/theme must not import features.
 - Schedule model is the shared domain for student/lecturer schedule features.
-- API integration and production authentication are not configured yet.
+- Authentication uses the backend auth contract; native tokens use SecureStore. Schedule/grade APIs remain unconfigured.
 - Do not add sample profiles, exams, candidates, results, questions or simulated sessions. Until API integration, show a disconnected empty state. Never claim a save without backend confirmation.
 - Input validation, accessibility and error recovery cannot be removed for simplicity.
 
@@ -22,3 +22,9 @@ npm run typecheck; npm test; npm run build. Run ui-test on web preview using its
 ## Current user validation preference
 
 Do not run the ui-test skill unless the user explicitly re-enables it. The user stopped it on 2026-10-28. Group any other necessary checks at the final implementation stage; do not repeatedly test while editing.
+
+## Git branch names
+
+Use branch names without the `codex/` prefix, as explicitly requested by the user.
+
+The user also requested no unit tests on2026-10-28. Do not add or run unit tests unless explicitly re-enabled. Existing historical tests may remain; use final compilation/build checks and necessary API connection verification only.

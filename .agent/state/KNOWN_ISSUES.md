@@ -22,3 +22,9 @@ Previous sample flows and their reports are historical. All runtime sample data 
 - Student Lịch thi / Điểm / Hồ sơ and branded entry UI are implemented without runtime samples. Real authentication, populated profile and published grades still require API integration.
 - Đăng xuất currently exits the local role selection; there is no real token/session in this milestone.
 - Native student navigation, font_scale=2.0 and landscape were checked before the final entry/logo refinement. The emulator was closed during refinement; final APK is rebuilt, but the refreshed entry/icon has not been rechecked on a device. Web preview checks do not establish native coverage.
+
+## Production-style entry
+Current root is welcome → sign-in. Authentication transport remains unconfigured, so signed-in student/lecturer screens are intentionally not reachable via the public entry. Form submission does not create a session; profile, grades and schedules still require real integration. Native keyboard/Back behavior of the new sign-in form is not device-verified in this change. UI-test is disabled by user instruction.
+
+## Backend auth · current
+Login, /me restoration, role routing, real profile, secure native token storage and password change are now connected. This supersedes earlier auth-unconfigured notes. Schedule/grade data integration is still pending. Backend initially timed out, later returned401 to invalid credentials. Direct browser CORS for localhost:8082 is403; use npm run preview's local proxy. No valid test account was supplied, so successful real-account login, persistent session/device logout and password change have not been verified end-to-end. New Android build is arm64-v8a; no new emulator/physical-device check. Unit tests and ui-test are disabled by user instruction.
