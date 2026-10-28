@@ -4,6 +4,7 @@ import { PlusJakartaSans_500Medium } from "@expo-google-fonts/plus-jakarta-sans/
 import { PlusJakartaSans_700Bold } from "@expo-google-fonts/plus-jakarta-sans/700Bold";
 import {
   ActivityIndicator,
+  BackHandler,
   KeyboardAvoidingView,
   Platform,
   Text,
@@ -11,16 +12,31 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { RoleEntryScreen } from "./src/features/auth/role-entry/RoleEntryScreen";
+import { AuthEntryScreen } from "./src/features/auth/AuthEntryScreen";
+import { ChangePasswordScreen } from "./src/features/auth/ChangePasswordScreen";
+import { useAuthSession } from "./src/features/auth/use-auth-session";
 import { StudentScheduleScreen } from "./src/features/student-schedule/StudentScheduleScreen";
 import { LecturerScheduleScreen } from "./src/features/lecturer-schedule/LecturerScheduleScreen";
 import { useSchedule } from "./src/features/schedule/use-schedule";
-import { Button } from "./src/components/ui";
-import { colors } from "./src/theme";
+import { Action, Surface, Type, palette, s } from "./src/components/ui/mobile";
 import { Brand } from "./src/components/ui/Brand";
 export default function App() {
-  const [role, setRole] = useState<"student" | "lecturer" | null>(null);
+  const auth = useAuthSession();
   const schedule = useSchedule();
+  const [passwordRequested, setPasswordRequested] = useState(false);
+  const passwordRequired = auth.session?.user.mustChangePassword === true;
+  useEffect(() => {
+    if (!auth.session) setPasswordRequested(false);
+  }, [auth.session]);
+  useEffect(() => {
+    if (Platform.OS === "web" || (!passwordRequired && !passwordRequested))
+      return;
+    const listener = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (!passwordRequired && !auth.busy) setPasswordRequested(false);
+      return true;
+    });
+    return () => listener.remove();
+  }, [passwordRequired, passwordRequested, auth.busy]);
   const [fontsLoaded, fontError] = useFonts({
     Jakarta: PlusJakartaSans_500Medium,
     JakartaBold: PlusJakartaSans_700Bold,
@@ -28,7 +44,7 @@ export default function App() {
   useEffect(() => {
     if (Platform.OS === "web") {
       document.documentElement.lang = "vi";
-      document.title = "AIVES · Lịch thi";
+      document.title = "AIVES";
     }
   }, []);
   if (!fontsLoaded)
@@ -58,12 +74,18 @@ export default function App() {
       <SafeAreaView
         style={{
           flex: 1,
-          backgroundColor: role !== "lecturer" ? "#f8fafc" : colors.bg,
+          backgroundColor: "#f8fafc",
         }}
       >
         <StatusBar style="dark" />
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          behavior={
+            Platform.OS === "ios"
+              ? "padding"
+              : Platform.OS === "web"
+                ? "height"
+                : undefined
+          }
           style={{ flex: 1 }}
         >
           <View
@@ -75,44 +97,109 @@ export default function App() {
               alignSelf: "center",
             }}
           >
-            {role ? (
+            {auth.phase === "restoring" ? (
+              <View
+                style={{
+                  flex: 1,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  gap: 14,
+                }}
+              >
+                <ActivityIndicator
+                  accessibilityLabel="Đang xác minh phiên đăng nhập"
+                  color={palette.blue}
+                />
+                <Type style={s.muted}>Đang xác minh tài khoản…</Type>
+              </View>
+            ) : auth.phase === "error" ? (
+              <View style={{ flex: 1, justifyContent: "center", padding: 20 }}>
+                <Surface>
+                  <Type accessibilityRole="header" style={s.h2}>
+                    Chưa thể xác minh phiên
+                  </Type>
+                  <Type accessibilityRole="alert">{auth.error}</Type>
+                  <Action label="Thử lại" onPress={() => void auth.restore()} />
+                  <Action
+                    secondary
+                    label="Đăng nhập lại"
+                    onPress={() => void auth.signOut()}
+                  />
+                </Surface>
+              </View>
+            ) : auth.session ? (
               <>
-                {role === "lecturer" && (
-                  <View
-                    style={{
-                      padding: 12,
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      backgroundColor: "#fff",
-                      borderBottomWidth: 1,
-                      borderColor: colors.line,
-                    }}
+                {auth.error ? (
+                  <Type
+                    accessibilityRole="alert"
+                    style={{ padding: 14, color: "#b42318" }}
                   >
-                    <Button
-                      secondary
-                      label="← Đổi vai trò"
-                      onPress={() => setRole(null)}
-                    />
-                    <Brand />
-                  </View>
-                )}
-                {role === "student" ? (
+                    {auth.error}
+                  </Type>
+                ) : null}
+                {passwordRequired || passwordRequested ? (
+                  <ChangePasswordScreen
+                    required={passwordRequired}
+                    busy={auth.busy}
+                    onSubmit={auth.changePassword}
+                    onBack={() => setPasswordRequested(false)}
+                    onSignOut={() => void auth.signOut()}
+                  />
+                ) : auth.session.user.role === "student" ? (
                   <StudentScheduleScreen
+                    key={auth.session.user.id}
                     slots={schedule.slots}
-                    onExit={() => setRole(null)}
+                    user={auth.session.user}
+                    busy={auth.busy}
+                    onChangePassword={() => setPasswordRequested(true)}
+                    onExit={() => void auth.signOut()}
                   />
                 ) : (
-                  <LecturerScheduleScreen
-                    {...schedule}
-                    onExit={() => setRole(null)}
-                    scenario="ready"
-                    onReset={() => {}}
-                  />
+                  <>
+                    <View style={{ padding: 20, gap: 12 }}>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          flexWrap: "wrap",
+                          gap: 12,
+                        }}
+                      >
+                        <Brand />
+                        <Action
+                          secondary
+                          label="Đăng xuất"
+                          icon="exit"
+                          disabled={auth.busy}
+                          onPress={() => void auth.signOut()}
+                        />
+                      </View>
+                      <Type style={s.h2}>{auth.session.user.fullName}</Type>
+                      <Type style={s.muted}>{auth.session.user.email}</Type>
+                      <Action
+                        secondary
+                        label="Đổi mật khẩu"
+                        icon="lock"
+                        onPress={() => setPasswordRequested(true)}
+                      />
+                    </View>
+                    <LecturerScheduleScreen
+                      key={auth.session.user.id}
+                      {...schedule}
+                      scenario="ready"
+                      onReset={() => {}}
+                      onExit={() => void auth.signOut()}
+                    />
+                  </>
                 )}
               </>
             ) : (
-              <RoleEntryScreen onSelect={setRole} />
+              <AuthEntryScreen
+                onSignIn={auth.signIn}
+                pending={auth.busy}
+                notice={auth.notice}
+              />
             )}
           </View>
         </KeyboardAvoidingView>

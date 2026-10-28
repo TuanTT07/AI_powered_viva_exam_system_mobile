@@ -1,12 +1,12 @@
 # User flows
 
-Role entry → Sinh viên → Lịch thi / Điểm / Hồ sơ.
+Welcome → Đăng nhập → real POST /api/auth/login → route by backend STUDENT/LECTURER role. Email/password form supports pending, invalid-input, invalid-credential, timeout/network and unsupported-role feedback. Android Back on sign-in returns to Welcome unless a request is pending. No role-selection bypass.
 
-- Lịch thi: Sắp tới / Đã qua → chi tiết ca thi (ngày, giờ, trạng thái, số thứ tự). Mobile không có chức năng thi vấn đáp.
-- Điểm: chỉ kết quả đã công bố → chi tiết kết quả. Không suy ra điểm cuối cùng từ điểm AI.
-- Hồ sơ: họ tên, mã sinh viên, email; đổi mật khẩu khi kết nối đăng nhập. Hiện chưa có phiên đăng nhập, nên các trường không được tự điền và đổi mật khẩu bị khóa. Nút Đăng xuất trở về màn vào app; chưa có phiên xác thực thật để thu hồi.
-- Android Back: chi tiết → danh sách; Điểm/Hồ sơ → Lịch thi; Lịch thi → chọn vai trò.
+Account requires password change → gated ChangePasswordScreen → confirmed POST /api/auth/change-password → clear saved session → sign in again for a new JWT. Normal password change is accessible from profile/account actions. No password recovery endpoint is invented.
 
-Role entry → Giảng viên → Kỳ thi phụ trách. Luồng giảng viên chưa được thiết kế lại trong đợt này. Phạm vi đã chốt cho đợt sau: kỳ thi được phân công → danh sách sinh viên → điểm danh.
+Startup with saved token → GET /api/auth/me → verified role/user. Expired/invalid token → sign in again. Transient network failure → recoverable verification screen, preserving stored token until retry or explicit re-authentication. Đăng xuất removes saved token; Android Back at feature root leaves/backgrounds the app without signing out.
 
-Nguồn dữ liệu hiện chưa kết nối. Không tạo hồ sơ, lịch thi hay điểm mẫu. Chọn vai trò chỉ là điều hướng UI, không phải đăng nhập/phân quyền.
+- Sinh viên: Lịch thi (Sắp tới / Đã qua) → chi tiết ca; Điểm → published results; Hồ sơ → actual user name/code/email, password change and logout. No mobile viva session.
+- Giảng viên: existing assigned-exam presentation; full assigned exams/roster/attendance redesign remains pending. Header displays the authenticated user's identity.
+
+Only authentication is integrated. Schedule/grade sources remain disconnected; no sample records or fabricated results appear after login. Successful real-account, device persistence and password-change verification need valid test credentials/device evidence; source/build checks alone do not establish those outcomes.

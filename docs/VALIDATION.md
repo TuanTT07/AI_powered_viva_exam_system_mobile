@@ -31,3 +31,14 @@ Android prebuild and assembleRelease succeeded; artifacts/AIVES.apk installed an
 - After the final entry/logo/Đăng xuất refinement: F1 landing, F2 navigation/logout and F3 text resize/responsive passed. F4 final accessibility/runtime was interrupted: landing/profile axe returned zero violations and disabled-password/entry keyboard checks passed, but remaining keyboard/runtime assertions were not completed. No additional ui-test runs: user explicitly requested stopping this skill.
 - Native student navigation/Back, profile scrolling, system font_scale=2.0 and landscape were checked before final branding refinement. The refreshed entry/icon has not been rerun on a native device; no physical-device/TalkBack coverage claimed. Final APK build status is separate from browser checks.
 - Current source has no production authentication or API integration. Đăng xuất returns to entry by clearing local role selection.
+
+## Production-style welcome/sign-in — 2026-10-28
+
+Final typecheck, existing 14 boundary/schedule assertions, web export and whitespace check passed after correcting the React Native 0.88 TextInput ref type. Existing model checks do not exercise the new sign-in form. No ui-test, browser automation, native emulator or TalkBack run was performed. Email/password validation, Next/Go keyboard actions, password visibility and Android Back are implemented but not interaction-tested in this change. The web export is updated; the local APK has not been rebuilt for this welcome/sign-in change. Production authentication remains unavailable and no session is fabricated.
+
+## Backend authentication — current implementation · 2026-10-28
+
+- User authorized real auth and later disabled unit testing; newly added auth unit script removed. No further unit/UI-test runs. Typecheck, preview-server syntax check and diff whitespace check pass. Web export succeeds.
+- Verified backend source contract, including mustChangePassword and fresh-login-after-password-change. Actual public invalid-login request returned401; browser preflight from localhost:8082 returned403. Loopback preview proxy forwards real auth only; invalid-login through http://localhost:8082/backend/api/auth/login returned401 in0.40s. Static preview returned200. This confirms request reachability/error handling, not successful real-account authentication.
+- Android arm64-v8a assembleRelease with SecureStore succeeded. No new emulator, physical-device or TalkBack run. Session restoration/expiry, role routing, actual profile, logout and password change are implemented; successful account login/persistence/change-password against a real account remain unverified because no valid test credentials were provided.
+- Schedule/grade APIs remain disconnected. No runtime fake identities, mock auth or sample records were introduced. API documents: docs/AUTH_API.md. The preceding UI-only notes are historical and superseded for authentication.

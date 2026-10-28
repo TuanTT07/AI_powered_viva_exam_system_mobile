@@ -14,3 +14,11 @@
 User narrowed student scope to schedule, grades and profile; lecturer scope to assigned exams, rosters and attendance. Exclude mobile viva, exam creation and grading edits. First deliver student UI only. Follow web AIVES palette at an overall level; use high-end-visual-design for typography/nested surfaces/floating bottom navigation, adapted to native 48dp controls and restrained mobile spacing. No runtime sample data. Profile/password UI stays unauthenticated until actual integration.
 
 Profile exit button uses the user-requested label “Đăng xuất”. In this UI-only build it clears the selected role and returns to the branded entry screen; it does not claim to revoke a real server session. Entry, student shell and lecturer header share Brand. Android adaptive icon and favicon use the same sparkle motif. User prefers one final validation stage after edits.
+
+## 2026-10-28 · Public welcome → sign-in
+User wants entry to feel like a production app and chose welcome → sign-in. Replace public role cards with email/password UI. Public entry must not grant access based on a self-selected role. Existing protected feature screens are retained but await actual authentication. This is presentation work, not a claim that production auth is implemented; valid submit reports unavailable service and does not create a fake session. No ui-test runs authorized.
+
+## 2026-10-28 · Backend login authorized
+Connect login/me/change-password only, superseding earlier no-API auth restriction. Use backend role and mustChangePassword; no local role choice or mock session. Native token/expiry in Expo SecureStore, web in per-tab sessionStorage. No refresh/logout endpoint: remove saved token on logout; require fresh JWT after password change. Invalid/expired session blocks access; transient restore errors remain recoverable. User requested no unit tests; remove newly authored auth tests, do not run further unit or ui-test suites.
+
+Confirmed deployed backend rejects localhost:8082 CORS preflight403. Add npm run preview with a loopback-only, three-endpoint auth proxy to the same real backend, while native app calls HTTPS directly. No backend CORS policy changed.
