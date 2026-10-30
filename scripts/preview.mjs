@@ -51,12 +51,14 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, "http://127.0.0.1:8082");
     if (url.pathname.startsWith("/backend/")) {
       const endpoint = url.pathname.slice("/backend".length);
-      const allowed = {
+      const isAuthAllowed = {
         "/api/auth/login": "POST",
         "/api/auth/me": "GET",
         "/api/auth/change-password": "POST",
-      };
-      if (allowed[endpoint] !== req.method)
+      }[endpoint] === req.method;
+      const isExamAllowed = endpoint.startsWith("/api/v1/exams");
+
+      if (!isAuthAllowed && !isExamAllowed)
         return error(res, 404, "Endpoint unavailable.");
       const chunks = [];
       let size = 0;
@@ -66,15 +68,16 @@ const server = http.createServer(async (req, res) => {
         chunks.push(chunk);
       }
       const headers = { Accept: "application/json" };
-      if (req.method === "POST") headers["Content-Type"] = "application/json";
+      if (req.method !== "GET" && req.method !== "HEAD")
+        headers["Content-Type"] = "application/json";
       if (typeof req.headers.authorization === "string")
         headers.Authorization = req.headers.authorization;
-      const response = await fetch(new URL(endpoint, target), {
+      const response = await fetch(new URL(endpoint + url.search, target), {
         method: req.method,
         headers,
         redirect: "error",
         signal: AbortSignal.timeout(60_000),
-        body: req.method === "POST" ? Buffer.concat(chunks) : undefined,
+        body: req.method !== "GET" && req.method !== "HEAD" ? Buffer.concat(chunks) : undefined,
       });
       res.writeHead(response.status, {
         "Content-Type":

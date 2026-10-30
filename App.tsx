@@ -19,7 +19,6 @@ import { StudentScheduleScreen } from "./src/features/student-schedule/StudentSc
 import { LecturerScheduleScreen } from "./src/features/lecturer-schedule/LecturerScheduleScreen";
 import { useSchedule } from "./src/features/schedule/use-schedule";
 import { Action, Surface, Type, palette, s } from "./src/components/ui/mobile";
-import { Brand } from "./src/components/ui/Brand";
 export default function App() {
   const auth = useAuthSession();
   const schedule = useSchedule();
@@ -155,43 +154,15 @@ export default function App() {
                     onExit={() => void auth.signOut()}
                   />
                 ) : (
-                  <>
-                    <View style={{ padding: 20, gap: 12 }}>
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          flexWrap: "wrap",
-                          gap: 12,
-                        }}
-                      >
-                        <Brand />
-                        <Action
-                          secondary
-                          label="Đăng xuất"
-                          icon="exit"
-                          disabled={auth.busy}
-                          onPress={() => void auth.signOut()}
-                        />
-                      </View>
-                      <Type style={s.h2}>{auth.session.user.fullName}</Type>
-                      <Type style={s.muted}>{auth.session.user.email}</Type>
-                      <Action
-                        secondary
-                        label="Đổi mật khẩu"
-                        icon="lock"
-                        onPress={() => setPasswordRequested(true)}
-                      />
-                    </View>
-                    <LecturerScheduleScreen
-                      key={auth.session.user.id}
-                      {...schedule}
-                      scenario="ready"
-                      onReset={() => {}}
-                      onExit={() => void auth.signOut()}
-                    />
-                  </>
+                  <LecturerScheduleScreen
+                    key={auth.session.user.id}
+                    slots={schedule.slots}
+                    token={auth.session.token}
+                    user={auth.session.user}
+                    busy={auth.busy}
+                    onChangePassword={() => setPasswordRequested(true)}
+                    onExit={() => void auth.signOut()}
+                  />
                 )}
               </>
             ) : (
