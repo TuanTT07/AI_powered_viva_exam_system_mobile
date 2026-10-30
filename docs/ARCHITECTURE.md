@@ -12,7 +12,7 @@ After login or verified /me restoration, App routes STUDENT and LECTURER to thei
 
 ## Signed-in features
 
-student-schedule composes schedule, published grades and server-provided profile; useStudentOverview owns local tab/filter/detail state. Lecturer-schedule retains exam-list/schedule presentation. Schedule model is shared; data remains disconnected until its APIs are requested. useSchedule rejects writes and never reports a local edit as a saved backend mutation. No runtime exam/profile/grade fixtures or simulated sessions.
+student-schedule composes schedule, published grades and server-provided profile; useStudentOverview owns local tab/filter/detail state. Lecturer-schedule is integrated with backend APIs (/api/v1/exams, /api/v1/exams/{examId}/schedule, markAbsent, resetAttempt); useLecturerOverview owns live data fetching, refreshing, local tab/filter/roster/detail state and real candidate actions. Student schedule/grade APIs remain pending. No runtime exam/profile/grade fixtures or simulated sessions.
 
 ## Presentation
 
@@ -20,4 +20,4 @@ components/ui/mobile provides shared type/surfaces/actions/motion; Brand and thi
 
 ## Preview
 
-npm run preview exports with /backend and serves localhost:8082. The loopback-only Node server proxies the three auth endpoints to real BE because deployed CORS currently denies this browser origin. Native builds call BE directly. This dev server is separate from production hosting and does not grant authentication or fabricate results.
+npm run preview exports with /backend and serves localhost:8082. The loopback-only Node server proxies the auth and exam endpoints to real BE because deployed CORS currently denies this browser origin. Native builds call BE directly. This dev server is separate from production hosting and does not grant authentication or fabricate results.

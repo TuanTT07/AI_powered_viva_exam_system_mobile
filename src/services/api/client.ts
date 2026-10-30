@@ -16,7 +16,7 @@ export const API_BASE_URL = (
   .replace(/\/+$/, "");
 
 type Options = {
-  method?: "GET" | "POST";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   token?: string;
   signal?: AbortSignal;
@@ -87,15 +87,21 @@ export async function apiRequest(
       success?: unknown;
       status?: unknown;
       data?: unknown;
+      message?: unknown;
     } | null;
-    if (!response.ok || envelope?.success === false) {
+    if (!response.ok || (envelope && envelope.success === false)) {
       const status =
         response.ok && typeof envelope?.status === "number"
           ? envelope.status
           : response.status;
+      const serverMessage =
+        typeof envelope?.message === "string" && envelope.message.trim()
+          ? envelope.message.trim()
+          : undefined;
       const message =
-        status === 401
-          ? "Email hoặc mật khẩu không đúng."
+        serverMessage ??
+        (status === 401
+          ? "Phiên làm việc hết hạn hoặc chưa đăng nhập."
           : status === 403
             ? "Bạn không có quyền thực hiện thao tác này."
             : status === 429
@@ -104,12 +110,20 @@ export async function apiRequest(
                 ? "Bạn cần đổi mật khẩu trước khi tiếp tục."
                 : status >= 500
                   ? "Máy chủ đang gặp sự cố. Vui lòng thử lại sau."
-                  : "Yêu cầu không được chấp nhận. Vui lòng kiểm tra thông tin.";
+                  : "Yêu cầu không được chấp nhận. Vui lòng kiểm tra thông tin.");
       throw new ApiError(message, status);
     }
-    if (envelope?.success !== true || !("data" in envelope))
-      throw new ApiError("Phản hồi máy chủ không hợp lệ.", response.status);
-    return envelope.data;
+    if (
+      envelope &&
+      typeof envelope === "object" &&
+      !Array.isArray(envelope) &&
+      "success" in envelope
+    ) {
+      if (envelope.success !== true || !("data" in envelope))
+        throw new ApiError("Phản hồi máy chủ không hợp lệ.", response.status);
+      return envelope.data;
+    }
+    return payload;
   } catch (error) {
     if (options.signal?.aborted)
       throw new ApiError("Yêu cầu đã hủy.", 0, "CANCELLED");
