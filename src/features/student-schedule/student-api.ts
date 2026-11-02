@@ -1,0 +1,103 @@
+import { apiRequest, ApiError } from "../../services/api/client";
+import { getLecturerExams } from "../lecturer-schedule/lecturer-api";
+import type { StudentExam } from "./student-model";
+
+export type BackendStudentSlotDto = {
+  attemptId: string;
+  examId: string;
+  examTitle: string;
+  courseCode: string;
+  courseName: string;
+  slotNumber: number;
+  scheduledStartTime: string;
+  scheduledEndTime: string;
+  actualStartTime?: string | null;
+  actualEndTime?: string | null;
+  status: "SCHEDULED" | "READY" | "IN_PROGRESS" | "COMPLETED" | "ABSENT" | "CANCELLED";
+  accessCode?: string | null;
+  questions?: Array<{
+    questionId: string;
+    content: string;
+    order?: number;
+  }>;
+};
+
+export async function getStudentMySlot(
+  token: string,
+  examId: string,
+  studentId: string,
+  options?: { signal?: AbortSignal },
+): Promise<BackendStudentSlotDto | null> {
+  try {
+    const result = (await apiRequest(
+      `/api/v1/student/exams/${encodeURIComponent(examId)}/my-slot?studentId=${encodeURIComponent(studentId)}`,
+      {
+        method: "GET",
+        token,
+        signal: options?.signal,
+      },
+    )) as BackendStudentSlotDto;
+
+    return result && result.attemptId ? result : null;
+  } catch (error) {
+    if (
+      error instanceof ApiError &&
+      (error.status === 404 || error.status === 400)
+    ) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+export async function loadStudentAllSlots(
+  token: string,
+  studentId: string,
+  options?: { signal?: AbortSignal },
+): Promise<StudentExam[]> {
+  const exams = await getLecturerExams(token, options);
+  if (!exams.length) return [];
+
+  const slotResults = await Promise.allSettled(
+    exams.map((exam) => getStudentMySlot(token, exam.id, studentId, options)),
+  );
+
+  const studentExamsList: StudentExam[] = [];
+
+  for (let i = 0; i < exams.length; i++) {
+    const res = slotResults[i];
+    if (res.status === "fulfilled" && res.value) {
+      const slotDto = res.value;
+      const exam = exams[i];
+      studentExamsList.push({
+        exam: {
+          id: exam.id,
+          title: slotDto.examTitle || exam.title,
+          courseCode: slotDto.courseCode || exam.courseCode,
+          courseName: slotDto.courseName || exam.courseName,
+          startTime: slotDto.scheduledStartTime || exam.startTime,
+          status: exam.status,
+        },
+        slot: {
+          attemptId: slotDto.attemptId,
+          examId: exam.id,
+          studentId,
+          studentCode: "",
+          studentName: "",
+          slotNumber: slotDto.slotNumber,
+          scheduledStartTime: slotDto.scheduledStartTime,
+          scheduledEndTime: slotDto.scheduledEndTime,
+          status: slotDto.status,
+        },
+        accessCode: slotDto.accessCode,
+        questions: slotDto.questions,
+      });
+    }
+  }
+
+  return studentExamsList.sort(
+    (a, b) =>
+      Date.parse(a.slot.scheduledStartTime) -
+      Date.parse(b.slot.scheduledStartTime),
+  );
+}

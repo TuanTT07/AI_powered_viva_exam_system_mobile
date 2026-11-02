@@ -148,6 +148,7 @@ export default function App() {
                   <StudentScheduleScreen
                     key={auth.session.user.id}
                     slots={schedule.slots}
+                    token={auth.session.token}
                     user={auth.session.user}
                     busy={auth.busy}
                     onChangePassword={() => setPasswordRequested(true)}
