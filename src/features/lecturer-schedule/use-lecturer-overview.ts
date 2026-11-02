@@ -3,18 +3,25 @@ import type { Exam, Slot } from "../schedule/model";
 import { isSlotHistory, lecturerSlots } from "./lecturer-model";
 import {
   getExamSchedules,
+  getLecturerCourses,
   getLecturerExams,
   markCandidateAbsent,
   resetCandidateAttempt,
+  type LecturerCourseDto,
 } from "./lecturer-api";
 
-export function useLecturerOverview(initialSlots: Slot[] = [], token?: string) {
+export function useLecturerOverview(
+  initialSlots: Slot[] = [],
+  token?: string,
+  userId?: string,
+) {
   const [tab, setTab] = useState<"schedule" | "roster" | "profile">("schedule");
   const [filter, setFilter] = useState<"upcoming" | "history">("upcoming");
   const [selected, setSelected] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
   const [exams, setExams] = useState<Exam[]>([]);
+  const [courses, setCourses] = useState<LecturerCourseDto[]>([]);
   const [slots, setSlots] = useState<Slot[]>(initialSlots);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -32,8 +39,14 @@ export function useLecturerOverview(initialSlots: Slot[] = [], token?: string) {
       setError(null);
 
       try {
-        const fetchedExams = await getLecturerExams(token);
+        const [fetchedExams, fetchedCourses] = await Promise.all([
+          getLecturerExams(token),
+          userId
+            ? getLecturerCourses(token, userId).catch(() => [])
+            : Promise.resolve([]),
+        ]);
         setExams(fetchedExams);
+        setCourses(fetchedCourses);
 
         if (fetchedExams.length === 0) {
           setSlots([]);
@@ -58,7 +71,7 @@ export function useLecturerOverview(initialSlots: Slot[] = [], token?: string) {
         setRefreshing(false);
       }
     },
-    [token],
+    [token, userId],
   );
 
   useEffect(() => {
@@ -103,7 +116,7 @@ export function useLecturerOverview(initialSlots: Slot[] = [], token?: string) {
         setActionLoading(false);
       }
     },
-    [token],
+    [token, userId],
   );
 
   const handleResetAttempt = useCallback(
@@ -124,7 +137,7 @@ export function useLecturerOverview(initialSlots: Slot[] = [], token?: string) {
         setActionLoading(false);
       }
     },
-    [token],
+    [token, userId],
   );
 
   return {
@@ -132,6 +145,7 @@ export function useLecturerOverview(initialSlots: Slot[] = [], token?: string) {
     filter,
     selected,
     searchQuery,
+    courses,
     exams,
     slots,
     loading,
