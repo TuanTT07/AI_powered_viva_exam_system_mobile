@@ -38,4 +38,12 @@ User requested connecting real backend APIs for lecturer features.
 - Lecturer API service: Added `lecturer-api.ts` mapping backend `ExamResponse` and `CandidateScheduleResponse` to domain models.
 - Interactive features: Added live data loading, pull-to-refresh (`RefreshControl`), live status badges, marking absent, and resetting attempts.
 
+## 2026-11-02 · Student API integration
+User requested creating a new branch (`student-api-integration`, without `codex/` prefix) and implementing the backend API integration for Student features.
+- Backend contract: `GET /api/v1/exams`, `GET /api/v1/student/exams/{examId}/my-slot?studentId={studentId}`.
+- Student API service: Created `src/features/student-schedule/student-api.ts` to query student slots across scheduled exams.
+- Model & UI updates: Updated `student-model.ts`, `use-student-overview.ts`, and `StudentScheduleScreen.tsx` with live data fetching, pull-to-refresh (`RefreshControl`), access code cards, question attempt lists, and live connection indicators.
+- Symmetrical App integration: Passed `token={auth.session.token}` to `StudentScheduleScreen` in `App.tsx`.
+
+
 

@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import {
+  ActivityIndicator,
   BackHandler,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   View,
@@ -27,14 +29,17 @@ const tabs = [
   { id: "grades", label: "Điểm", icon: "score" },
   { id: "profile", label: "Hồ sơ", icon: "profile" },
 ] as const;
+
 export function StudentScheduleScreen({
-  slots,
+  slots: initialSlots = [],
+  token,
   onExit,
   user,
   onChangePassword,
   busy,
 }: {
-  slots: Slot[];
+  slots?: Slot[];
+  token?: string;
   onExit: () => void;
   user: AuthUser;
   onChangePassword: () => void;
@@ -47,10 +52,16 @@ export function StudentScheduleScreen({
     item,
     visible,
     items,
+    loading,
+    refreshing,
+    error,
     setSelected,
     setFilter,
     selectTab,
-  } = useStudentOverview(slots, user.id);
+    refresh,
+    retry,
+  } = useStudentOverview(initialSlots, user.id, token);
+
   useEffect(() => {
     if (Platform.OS === "web") return;
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -61,7 +72,9 @@ export function StudentScheduleScreen({
     });
     return () => sub.remove();
   }, [selected, tab, onExit, setSelected, selectTab]);
+
   const results = items.filter((entry) => entry.released);
+
   return (
     <View style={styles.root}>
       <View style={styles.brandRow}>
@@ -75,9 +88,32 @@ export function StudentScheduleScreen({
         style={{ flex: 1 }}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={refresh}
+            colors={[palette.blue]}
+            tintColor={palette.blue}
+          />
+        }
       >
         <Reveal>
-          {selected && item ? (
+          {loading ? (
+            <View style={styles.loader}>
+              <ActivityIndicator color={palette.blue} size="large" />
+              <Type style={s.muted}>Đang tải lịch thi cá nhân…</Type>
+            </View>
+          ) : error ? (
+            <Surface>
+              <Type accessibilityRole="header" style={s.h2}>
+                Chưa thể tải dữ liệu
+              </Type>
+              <Type accessibilityRole="alert" style={s.muted}>
+                {error}
+              </Type>
+              <Action label="Thử lại" onPress={retry} />
+            </Surface>
+          ) : selected && item ? (
             <>
               <Pressable
                 accessibilityRole="button"
@@ -100,7 +136,7 @@ export function StudentScheduleScreen({
               <Surface>
                 <View style={styles.status}>
                   <Type style={{ color: palette.blue }}>
-                    {labels[item.slot.status]}
+                    {labels[item.slot.status] || item.slot.status}
                   </Type>
                 </View>
                 <Type style={s.h2}>{day(item.slot.scheduledStartTime)}</Type>
@@ -112,9 +148,45 @@ export function StudentScheduleScreen({
                   </Type>
                 </View>
                 <View style={s.rule} />
-                <Type>Số thứ tự · {item.slot.slotNumber}</Type>
+                <Type>Số thứ tự · STT {String(item.slot.slotNumber).padStart(2, "0")}</Type>
                 <Type style={s.detailLabel}>Giờ Việt Nam · UTC+7</Type>
               </Surface>
+              {item.accessCode ? (
+                <Surface style={styles.accessCodeCard}>
+                  <Type style={s.eyebrow}>MÃ TRUY CẬP PHÒNG THI</Type>
+                  <Type
+                    style={[
+                      s.h1,
+                      {
+                        color: "#15803d",
+                        letterSpacing: 2,
+                        textAlign: "center",
+                        fontSize: 24,
+                      },
+                    ]}
+                  >
+                    {item.accessCode}
+                  </Type>
+                  <Type style={[s.detailLabel, { textAlign: "center" }]}>
+                    Sử dụng mã này khi bước vào phiên vấn đáp.
+                  </Type>
+                </Surface>
+              ) : null}
+              {item.questions && item.questions.length > 0 ? (
+                <Surface>
+                  <Type style={s.eyebrow}>
+                    BỘ CÂU HỎI ĐƯỢC CẤP PHÁT ({item.questions.length})
+                  </Type>
+                  {item.questions.map((q, idx) => (
+                    <View key={q.questionId} style={{ paddingVertical: 4 }}>
+                      <Type style={{ fontFamily: "JakartaBold" }}>
+                        Câu {q.order ?? idx + 1}
+                      </Type>
+                      <Type>{q.content}</Type>
+                    </View>
+                  ))}
+                </Surface>
+              ) : null}
               {item.released && (
                 <Surface>
                   <Type style={s.eyebrow}>ĐIỂM ĐÃ CÔNG BỐ</Type>
@@ -176,7 +248,9 @@ export function StudentScheduleScreen({
                       {time(entry.slot.scheduledStartTime)} –{" "}
                       {time(entry.slot.scheduledEndTime)}
                     </Type>
-                    <Type style={s.muted}>{labels[entry.slot.status]}</Type>
+                    <Type style={s.muted}>
+                      {labels[entry.slot.status] || entry.slot.status}
+                    </Type>
                     <Action
                       label="Chi tiết ca thi"
                       onPress={() => setSelected(entry.slot.attemptId)}
@@ -187,13 +261,13 @@ export function StudentScheduleScreen({
                 <Empty
                   icon="calendar"
                   title="Chưa có dữ liệu lịch thi"
-                  description="Lịch thi sẽ hiển thị khi ứng dụng kết nối hệ thống."
+                  description="Bạn chưa có ca thi nào được xếp lịch trong hệ thống."
                 />
               )}
               <View style={styles.note}>
                 <Icon name="clock" size={18} color={palette.muted} />
                 <Type style={[s.detailLabel, { flex: 1 }]}>
-                  Lịch thi hiển thị theo giờ Việt Nam (UTC+7).
+                  Lịch thi hiển thị theo giờ Việt Nam (UTC+7). Kéo xuống để làm mới.
                 </Type>
               </View>
             </>
@@ -226,7 +300,7 @@ export function StudentScheduleScreen({
                 <Empty
                   icon="score"
                   title="Chưa có dữ liệu điểm"
-                  description="Điểm đã công bố sẽ xuất hiện tại đây khi kết nối hệ thống."
+                  description="Điểm đã công bố sẽ xuất hiện tại đây khi kết nối hệ thống chấm thi."
                 />
               )}
             </>
@@ -292,8 +366,17 @@ export function StudentScheduleScreen({
         </Reveal>
       </ScrollView>
       <View style={styles.connection}>
-        <View style={styles.dot} />
-        <Type style={s.detailLabel}>Chưa kết nối dữ liệu kỳ thi</Type>
+        <View
+          style={[
+            styles.dot,
+            items.length > 0 && { backgroundColor: "#10b981" },
+          ]}
+        />
+        <Type style={s.detailLabel}>
+          {items.length > 0
+            ? `Đã kết nối máy chủ (${items.length} ca thi)`
+            : "Chưa có ca thi nào được phân công"}
+        </Type>
       </View>
       <View style={styles.navOuter}>
         <View accessibilityRole="tablist" style={styles.nav}>
@@ -331,6 +414,7 @@ export function StudentScheduleScreen({
     </View>
   );
 }
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: palette.canvas },
   brandRow: {
@@ -357,6 +441,17 @@ const styles = StyleSheet.create({
     maxWidth: 620,
     alignSelf: "center",
   },
+  loader: {
+    paddingVertical: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 16,
+  },
+  accessCodeCard: {
+    backgroundColor: "#f0fdf4",
+    borderColor: "#bbf7d0",
+    borderWidth: 1,
+  },
   filters: {
     flexDirection: "row",
     padding: 5,
@@ -382,6 +477,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 9,
     paddingHorizontal: 8,
+    marginTop: 12,
   },
   avatar: {
     width: 64,
@@ -399,7 +495,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 7,
   },
-  dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: palette.muted },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: palette.muted },
   navOuter: { paddingHorizontal: 16, paddingBottom: 12, paddingTop: 4 },
   nav: {
     flexDirection: "row",
@@ -428,6 +524,7 @@ const styles = StyleSheet.create({
     gap: 10,
     alignSelf: "flex-start",
     paddingRight: 16,
+    marginBottom: 8,
   },
   status: {
     backgroundColor: palette.soft,
