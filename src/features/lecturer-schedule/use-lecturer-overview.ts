@@ -2,11 +2,14 @@ import { useCallback, useEffect, useState } from "react";
 import type { Exam, Slot } from "../schedule/model";
 import { isSlotHistory, lecturerSlots } from "./lecturer-model";
 import {
+  getExamMonitoring,
   getExamSchedules,
   getLecturerCourses,
   getLecturerExams,
   markCandidateAbsent,
+  rescheduleCandidate,
   resetCandidateAttempt,
+  type ExamMonitoringDto,
   type LecturerCourseDto,
 } from "./lecturer-api";
 
@@ -23,6 +26,9 @@ export function useLecturerOverview(
   const [exams, setExams] = useState<Exam[]>([]);
   const [courses, setCourses] = useState<LecturerCourseDto[]>([]);
   const [slots, setSlots] = useState<Slot[]>(initialSlots);
+  const [monitoringData, setMonitoringData] = useState<
+    Record<string, ExamMonitoringDto>
+  >({});
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,12 +56,18 @@ export function useLecturerOverview(
 
         if (fetchedExams.length === 0) {
           setSlots([]);
+          setMonitoringData({});
           return;
         }
 
-        const scheduleResults = await Promise.allSettled(
-          fetchedExams.map((e) => getExamSchedules(token, e.id)),
-        );
+        const [scheduleResults, monitorResults] = await Promise.all([
+          Promise.allSettled(
+            fetchedExams.map((e) => getExamSchedules(token, e.id)),
+          ),
+          Promise.allSettled(
+            fetchedExams.map((e) => getExamMonitoring(token, e.id)),
+          ),
+        ]);
 
         const allSlots: Slot[] = [];
         for (const res of scheduleResults) {
@@ -64,6 +76,14 @@ export function useLecturerOverview(
           }
         }
         setSlots(allSlots);
+
+        const newMonitoring: Record<string, ExamMonitoringDto> = {};
+        for (const res of monitorResults) {
+          if (res.status === "fulfilled" && res.value?.examId) {
+            newMonitoring[res.value.examId] = res.value;
+          }
+        }
+        setMonitoringData(newMonitoring);
       } catch (e) {
         setError((e as Error).message || "Không thể tải dữ liệu ca thi.");
       } finally {
@@ -109,6 +129,13 @@ export function useLecturerOverview(
         setSlots((prev) =>
           prev.map((s) => (s.attemptId === attemptId ? updated : s)),
         );
+        // Refresh monitoring
+        getExamMonitoring(token, examId)
+          .then((m) => {
+            if (m?.examId)
+              setMonitoringData((prev) => ({ ...prev, [m.examId]: m }));
+          })
+          .catch(() => {});
         setActionFeedback("Đã ghi nhận vắng mặt cho thí sinh.");
       } catch (e) {
         setActionError((e as Error).message || "Không thể ghi nhận vắng mặt.");
@@ -116,7 +143,7 @@ export function useLecturerOverview(
         setActionLoading(false);
       }
     },
-    [token, userId],
+    [token],
   );
 
   const handleResetAttempt = useCallback(
@@ -130,6 +157,13 @@ export function useLecturerOverview(
         setSlots((prev) =>
           prev.map((s) => (s.attemptId === attemptId ? updated : s)),
         );
+        // Refresh monitoring
+        getExamMonitoring(token, examId)
+          .then((m) => {
+            if (m?.examId)
+              setMonitoringData((prev) => ({ ...prev, [m.examId]: m }));
+          })
+          .catch(() => {});
         setActionFeedback("Đã reset ca thi về trạng thái sẵn sàng.");
       } catch (e) {
         setActionError((e as Error).message || "Không thể reset ca thi.");
@@ -137,7 +171,46 @@ export function useLecturerOverview(
         setActionLoading(false);
       }
     },
-    [token, userId],
+    [token],
+  );
+
+  const handleReschedule = useCallback(
+    async (
+      examId: string,
+      studentId: string,
+      newStartTimeIso: string,
+      newEndTimeIso: string,
+    ): Promise<boolean> => {
+      if (!token) return false;
+      setActionLoading(true);
+      setActionFeedback(null);
+      setActionError(null);
+      try {
+        const updated = await rescheduleCandidate(token, examId, {
+          studentId,
+          newScheduledStartTime: newStartTimeIso,
+          newScheduledEndTime: newEndTimeIso,
+        });
+        setSlots((prev) =>
+          prev.map((s) => (s.attemptId === updated.attemptId ? updated : s)),
+        );
+        getExamMonitoring(token, examId)
+          .then((m) => {
+            if (m?.examId)
+              setMonitoringData((prev) => ({ ...prev, [m.examId]: m }));
+          })
+          .catch(() => {});
+        setActionFeedback("Đã đổi ca thi thành công cho thí sinh.");
+        return true;
+      } catch (e) {
+        const msg = (e as Error).message || "Không thể đổi ca thi.";
+        setActionError(msg);
+        return false;
+      } finally {
+        setActionLoading(false);
+      }
+    },
+    [token],
   );
 
   return {
@@ -148,6 +221,7 @@ export function useLecturerOverview(
     courses,
     exams,
     slots,
+    monitoringData,
     loading,
     refreshing,
     error,
@@ -166,6 +240,7 @@ export function useLecturerOverview(
     retry: () => loadData(false),
     markAbsent: handleMarkAbsent,
     resetAttempt: handleResetAttempt,
+    reschedule: handleReschedule,
     clearFeedback: () => {
       setActionFeedback(null);
       setActionError(null);

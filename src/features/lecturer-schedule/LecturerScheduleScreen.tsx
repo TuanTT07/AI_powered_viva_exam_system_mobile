@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   BackHandler,
@@ -13,7 +13,7 @@ import {
 import type { AuthUser } from "../auth/auth-model";
 import { Icon } from "../../components/ui/Icon";
 import { Brand } from "../../components/ui/Brand";
-import { day, labels, time, type Slot } from "../schedule/model";
+import { dateKey, day, labels, time, type Slot } from "../schedule/model";
 import { useLecturerOverview } from "./use-lecturer-overview";
 import {
   Action,
@@ -54,6 +54,7 @@ export function LecturerScheduleScreen({
     exams,
     courses,
     slots,
+    monitoringData,
     loading,
     refreshing,
     error,
@@ -72,15 +73,27 @@ export function LecturerScheduleScreen({
     retry,
     markAbsent,
     resetAttempt,
+    reschedule,
     clearFeedback,
   } = useLecturerOverview(initialSlots, token, user.id);
+
+  const [showReschedule, setShowReschedule] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleStart, setRescheduleStart] = useState("");
+  const [rescheduleEnd, setRescheduleEnd] = useState("");
+  const [rescheduleFormError, setRescheduleFormError] = useState("");
 
   useEffect(() => {
     if (Platform.OS === "web") return;
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      if (selected) setSelected("");
-      else if (tab !== "schedule") selectTab("schedule");
-      else return false;
+      if (selected) {
+        setSelected("");
+        setShowReschedule(false);
+      } else if (tab !== "schedule") {
+        selectTab("schedule");
+      } else {
+        return false;
+      }
       return true;
     });
     return () => sub.remove();
@@ -159,7 +172,10 @@ export function LecturerScheduleScreen({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Quay lại"
-                onPress={() => setSelected("")}
+                onPress={() => {
+                  setSelected("");
+                  setShowReschedule(false);
+                }}
                 style={styles.back}
               >
                 <Icon name="back" />
@@ -203,21 +219,138 @@ export function LecturerScheduleScreen({
                 item.slot.status === "READY") && (
                 <Surface>
                   <Type style={s.eyebrow}>THAO TÁC CA THI</Type>
-                  <Action
-                    secondary
-                    disabled={actionLoading}
-                    label={
-                      actionLoading
-                        ? "Đang ghi nhận…"
-                        : "Ghi nhận thí sinh vắng thi"
-                    }
-                    onPress={() =>
-                      void markAbsent(item.slot.examId, item.slot.attemptId)
-                    }
-                  />
-                  <Type style={s.detailLabel}>
-                    Đánh dấu thí sinh vắng mặt nếu không tham gia ca thi.
-                  </Type>
+                  {!showReschedule ? (
+                    <>
+                      <Action
+                        secondary
+                        disabled={actionLoading}
+                        label="Đổi lịch ca thi"
+                        icon="calendar"
+                        onPress={() => {
+                          setRescheduleDate(
+                            dateKey(item.slot.scheduledStartTime),
+                          );
+                          setRescheduleStart(time(item.slot.scheduledStartTime));
+                          setRescheduleEnd(time(item.slot.scheduledEndTime));
+                          setRescheduleFormError("");
+                          setShowReschedule(true);
+                        }}
+                      />
+                      <Action
+                        secondary
+                        disabled={actionLoading}
+                        label={
+                          actionLoading
+                            ? "Đang ghi nhận…"
+                            : "Ghi nhận thí sinh vắng thi"
+                        }
+                        onPress={() =>
+                          void markAbsent(item.slot.examId, item.slot.attemptId)
+                        }
+                      />
+                      <Type style={s.detailLabel}>
+                        Đổi lịch hoặc đánh dấu thí sinh vắng mặt nếu không tham gia ca thi.
+                      </Type>
+                    </>
+                  ) : (
+                    <View style={{ gap: 12 }}>
+                      <Type style={s.h2}>Đổi lịch ca thi</Type>
+                      <Type style={s.muted}>
+                        Nhập ngày thi và khung giờ mới cho thí sinh{" "}
+                        {item.slot.studentName}.
+                      </Type>
+
+                      {rescheduleFormError ? (
+                        <Type style={{ color: "#b91c1c", fontSize: 13 }}>
+                          {rescheduleFormError}
+                        </Type>
+                      ) : null}
+
+                      <View>
+                        <Type style={s.detailLabel}>Ngày thi (YYYY-MM-DD)</Type>
+                        <TextInput
+                          accessibilityLabel="Ngày thi mới"
+                          style={styles.formInput}
+                          value={rescheduleDate}
+                          onChangeText={setRescheduleDate}
+                          placeholder="2026-11-05"
+                          placeholderTextColor="#94a3b8"
+                          keyboardType="numbers-and-punctuation"
+                        />
+                      </View>
+
+                      <View style={[s.row, { gap: 12 }]}>
+                        <View style={{ flex: 1 }}>
+                          <Type style={s.detailLabel}>Bắt đầu (HH:mm)</Type>
+                          <TextInput
+                            accessibilityLabel="Giờ bắt đầu"
+                            style={styles.formInput}
+                            value={rescheduleStart}
+                            onChangeText={setRescheduleStart}
+                            placeholder="08:00"
+                            placeholderTextColor="#94a3b8"
+                            keyboardType="numbers-and-punctuation"
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Type style={s.detailLabel}>Kết thúc (HH:mm)</Type>
+                          <TextInput
+                            accessibilityLabel="Giờ kết thúc"
+                            style={styles.formInput}
+                            value={rescheduleEnd}
+                            onChangeText={setRescheduleEnd}
+                            placeholder="08:20"
+                            placeholderTextColor="#94a3b8"
+                            keyboardType="numbers-and-punctuation"
+                          />
+                        </View>
+                      </View>
+
+                      <Action
+                        disabled={actionLoading}
+                        label={
+                          actionLoading ? "Đang cập nhật…" : "Xác nhận đổi lịch"
+                        }
+                        onPress={async () => {
+                          if (
+                            !/^\d{4}-\d{2}-\d{2}$/.test(rescheduleDate) ||
+                            !/^([01]\d|2[0-3]):[0-5]\d$/.test(rescheduleStart) ||
+                            !/^([01]\d|2[0-3]):[0-5]\d$/.test(rescheduleEnd)
+                          ) {
+                            setRescheduleFormError(
+                              "Vui lòng nhập ngày (YYYY-MM-DD) và giờ (HH:mm) đúng định dạng.",
+                            );
+                            return;
+                          }
+                          const from = `${rescheduleDate}T${rescheduleStart}:00+07:00`;
+                          const to = `${rescheduleDate}T${rescheduleEnd}:00+07:00`;
+                          if (Date.parse(to) <= Date.parse(from)) {
+                            setRescheduleFormError(
+                              "Giờ kết thúc phải sau giờ bắt đầu.",
+                            );
+                            return;
+                          }
+                          setRescheduleFormError("");
+                          const success = await reschedule(
+                            item.slot.examId,
+                            item.slot.studentId,
+                            new Date(from).toISOString(),
+                            new Date(to).toISOString(),
+                          );
+                          if (success) {
+                            setShowReschedule(false);
+                          }
+                        }}
+                      />
+
+                      <Action
+                        secondary
+                        disabled={actionLoading}
+                        label="Hủy"
+                        onPress={() => setShowReschedule(false)}
+                      />
+                    </View>
+                  )}
                 </Surface>
               )}
 
@@ -259,6 +392,13 @@ export function LecturerScheduleScreen({
                   <Type style={s.eyebrow}>KỲ THI PHỤ TRÁCH ({exams.length})</Type>
                   {exams.map((ex) => {
                     const examSlots = slots.filter((s) => s.examId === ex.id);
+                    const monitor = monitoringData[ex.id];
+                    const rate = monitor
+                      ? monitor.completionRate <= 1
+                        ? Math.round(monitor.completionRate * 100)
+                        : Math.round(monitor.completionRate)
+                      : 0;
+
                     return (
                       <Surface key={ex.id}>
                         <View style={s.row}>
@@ -283,6 +423,87 @@ export function LecturerScheduleScreen({
                           <Icon name="calendar" size={18} />
                           <Type style={{ flex: 1 }}>{day(ex.startTime)}</Type>
                         </View>
+
+                        {monitor && (
+                          <View style={styles.monitorCard}>
+                            <View
+                              style={[
+                                s.row,
+                                { justifyContent: "space-between" },
+                              ]}
+                            >
+                              <Type style={styles.monitorTitle}>
+                                Tiến độ ca thi
+                              </Type>
+                              <Type style={styles.monitorRate}>
+                                {rate}% hoàn tất
+                              </Type>
+                            </View>
+                            <View style={styles.progressBarTrack}>
+                              <View
+                                style={[
+                                  styles.progressBarThumb,
+                                  {
+                                    width: `${Math.min(100, Math.max(0, rate))}%`,
+                                  },
+                                ]}
+                              />
+                            </View>
+                            <View style={styles.monitorStatsRow}>
+                              <View style={styles.monitorStatBox}>
+                                <Type style={styles.statNumber}>
+                                  {monitor.totalCandidates}
+                                </Type>
+                                <Type style={styles.statLabel}>Tổng số</Type>
+                              </View>
+                              <View style={styles.monitorStatBox}>
+                                <Type
+                                  style={[
+                                    styles.statNumber,
+                                    { color: palette.blue },
+                                  ]}
+                                >
+                                  {monitor.readyCount}
+                                </Type>
+                                <Type style={styles.statLabel}>Sẵn sàng</Type>
+                              </View>
+                              <View style={styles.monitorStatBox}>
+                                <Type
+                                  style={[
+                                    styles.statNumber,
+                                    { color: "#f59e0b" },
+                                  ]}
+                                >
+                                  {monitor.inProgressCount}
+                                </Type>
+                                <Type style={styles.statLabel}>Đang thi</Type>
+                              </View>
+                              <View style={styles.monitorStatBox}>
+                                <Type
+                                  style={[
+                                    styles.statNumber,
+                                    { color: "#10b981" },
+                                  ]}
+                                >
+                                  {monitor.completedCount}
+                                </Type>
+                                <Type style={styles.statLabel}>Hoàn tất</Type>
+                              </View>
+                              <View style={styles.monitorStatBox}>
+                                <Type
+                                  style={[
+                                    styles.statNumber,
+                                    { color: "#ef4444" },
+                                  ]}
+                                >
+                                  {monitor.absentCount}
+                                </Type>
+                                <Type style={styles.statLabel}>Vắng thi</Type>
+                              </View>
+                            </View>
+                          </View>
+                        )}
+
                         <Type style={s.detailLabel}>
                           {examSlots.length > 0
                             ? `${examSlots.length} ca thi đã được xếp lịch`
@@ -706,5 +927,70 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#0f172a",
     marginBottom: 16,
+  },
+  monitorCard: {
+    backgroundColor: "#f8fafc",
+    borderRadius: 14,
+    padding: 12,
+    marginTop: 8,
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  monitorTitle: {
+    fontFamily: "JakartaBold",
+    fontSize: 13,
+    color: "#334155",
+  },
+  monitorRate: {
+    fontFamily: "JakartaBold",
+    fontSize: 13,
+    color: palette.blue,
+  },
+  progressBarTrack: {
+    height: 6,
+    backgroundColor: "#e2e8f0",
+    borderRadius: 3,
+    marginVertical: 8,
+    overflow: "hidden",
+  },
+  progressBarThumb: {
+    height: "100%",
+    backgroundColor: palette.blue,
+    borderRadius: 3,
+  },
+  monitorStatsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingTop: 4,
+  },
+  monitorStatBox: {
+    alignItems: "center",
+    flex: 1,
+  },
+  statNumber: {
+    fontFamily: "JakartaBold",
+    fontSize: 15,
+    color: "#0f172a",
+  },
+  statLabel: {
+    fontFamily: "Jakarta",
+    fontSize: 11,
+    color: "#64748b",
+    marginTop: 2,
+  },
+  formInput: {
+    minHeight: 44,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontFamily: "Jakarta",
+    fontSize: 14,
+    color: "#0f172a",
+    marginTop: 4,
   },
 });
