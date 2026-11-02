@@ -12,7 +12,7 @@ After login or verified /me restoration, App routes STUDENT and LECTURER to thei
 
 ## Signed-in features
 
-student-schedule is integrated with backend APIs (/api/v1/exams, /api/v1/student/exams/{examId}/my-slot); useStudentOverview owns live slot fetching, pull-to-refresh and local tab/filter/detail state. Lecturer-schedule is integrated with backend APIs (/api/v1/exams, /api/v1/exams/{examId}/schedule, /api/lecturers/{lecturerId}/courses, markAbsent, resetAttempt); useLecturerOverview owns live data fetching, refreshing, local tab/filter/roster/detail state and real candidate actions. Published grade evaluations remain pending on backend. No runtime exam/profile/grade fixtures or simulated sessions.
+student-schedule is integrated with backend APIs (/api/v1/exams, /api/v1/student/exams/{examId}/my-slot); useStudentOverview owns live slot fetching, pull-to-refresh and local tab/filter/detail state. Lecturer-schedule is integrated with backend APIs (/api/v1/exams, /api/v1/exams/{examId}/schedule, /api/v1/exams/{examId}/monitor, /api/v1/exams/{examId}/schedule/reschedule, /api/lecturers/{lecturerId}/courses, markAbsent, resetAttempt); useLecturerOverview owns live data fetching, monitoring metrics, slot rescheduling, refreshing, local tab/filter/roster/detail state and candidate actions. Root App.tsx composes screens cleanly without legacy shared mock schedule hooks. Published grade evaluations remain pending on backend. No runtime exam/profile/grade fixtures or simulated sessions.
 
 ## Presentation
 

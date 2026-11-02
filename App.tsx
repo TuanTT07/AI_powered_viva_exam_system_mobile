@@ -17,11 +17,9 @@ import { ChangePasswordScreen } from "./src/features/auth/ChangePasswordScreen";
 import { useAuthSession } from "./src/features/auth/use-auth-session";
 import { StudentScheduleScreen } from "./src/features/student-schedule/StudentScheduleScreen";
 import { LecturerScheduleScreen } from "./src/features/lecturer-schedule/LecturerScheduleScreen";
-import { useSchedule } from "./src/features/schedule/use-schedule";
 import { Action, Surface, Type, palette, s } from "./src/components/ui/mobile";
 export default function App() {
   const auth = useAuthSession();
-  const schedule = useSchedule();
   const [passwordRequested, setPasswordRequested] = useState(false);
   const passwordRequired = auth.session?.user.mustChangePassword === true;
   useEffect(() => {
@@ -147,7 +145,6 @@ export default function App() {
                 ) : auth.session.user.role === "student" ? (
                   <StudentScheduleScreen
                     key={auth.session.user.id}
-                    slots={schedule.slots}
                     token={auth.session.token}
                     user={auth.session.user}
                     busy={auth.busy}
@@ -157,7 +154,6 @@ export default function App() {
                 ) : (
                   <LecturerScheduleScreen
                     key={auth.session.user.id}
-                    slots={schedule.slots}
                     token={auth.session.token}
                     user={auth.session.user}
                     busy={auth.busy}

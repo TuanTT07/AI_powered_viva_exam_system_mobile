@@ -45,5 +45,15 @@ User requested creating a new branch (`student-api-integration`, without `codex/
 - Model & UI updates: Updated `student-model.ts`, `use-student-overview.ts`, and `StudentScheduleScreen.tsx` with live data fetching, pull-to-refresh (`RefreshControl`), access code cards, question attempt lists, and live connection indicators.
 - Symmetrical App integration: Passed `token={auth.session.token}` to `StudentScheduleScreen` in `App.tsx`.
 
+## 2026-11-02 · Lecturer Advanced Features & Codebase Cleanup (Items A & D)
+User requested creating a new branch (`lecturer-monitoring-reschedule`, without `codex/` prefix) and implementing items A and D:
+- **Item A (Lecturer Advanced Features)**:
+  - Monitoring Dashboard: Integrated `GET /api/v1/exams/{examId}/monitor`, displaying real-time completion rate bar and breakdown counters (`totalCandidates`, `readyCount`, `inProgressCount`, `completedCount`, `absentCount`).
+  - Reschedule Exam Slot: Integrated `PUT /api/v1/exams/{examId}/schedule/reschedule`, adding an inline form in the slot detail view allowing lecturers to adjust candidate date and time with validation and live state synchronization.
+- **Item D (Cleanup)**:
+  - Cleaned up legacy `useSchedule` mock hook and unused `slots` prop from `App.tsx`.
+  - Both `StudentScheduleScreen` and `LecturerScheduleScreen` now cleanly connect to live backend APIs independently.
+
+
 
 
