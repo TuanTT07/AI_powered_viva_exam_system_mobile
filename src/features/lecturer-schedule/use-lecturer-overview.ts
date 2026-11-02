@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import type { Exam, Slot } from "../schedule/model";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { Exam, Slot, SlotStatus } from "../schedule/model";
 import { isSlotHistory, lecturerSlots } from "./lecturer-model";
 import {
   getExamMonitoring,
@@ -13,6 +13,13 @@ import {
   type LecturerCourseDto,
 } from "./lecturer-api";
 
+export type SlotStatusFilter =
+  | "ALL"
+  | "READY"
+  | "IN_PROGRESS"
+  | "COMPLETED"
+  | "ABSENT";
+
 export function useLecturerOverview(
   initialSlots: Slot[] = [],
   token?: string,
@@ -20,6 +27,7 @@ export function useLecturerOverview(
 ) {
   const [tab, setTab] = useState<"schedule" | "roster" | "profile">("schedule");
   const [filter, setFilter] = useState<"upcoming" | "history">("upcoming");
+  const [statusFilter, setStatusFilter] = useState<SlotStatusFilter>("ALL");
   const [selected, setSelected] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -99,22 +107,58 @@ export function useLecturerOverview(
   }, [loadData]);
 
   const items = lecturerSlots(slots, exams);
-  const visible = items.filter((item) =>
-    filter === "history" ? isSlotHistory(item.slot) : !isSlotHistory(item.slot),
+
+  const matchesStatus = (status: SlotStatus, filterVal: SlotStatusFilter) => {
+    if (filterVal === "ALL") return true;
+    if (filterVal === "READY")
+      return status === "READY" || status === "SCHEDULED";
+    return status === filterVal;
+  };
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<SlotStatusFilter, number> = {
+      ALL: items.length,
+      READY: 0,
+      IN_PROGRESS: 0,
+      COMPLETED: 0,
+      ABSENT: 0,
+    };
+    for (const item of items) {
+      if (item.slot.status === "READY" || item.slot.status === "SCHEDULED") {
+        counts.READY++;
+      } else if (item.slot.status === "IN_PROGRESS") {
+        counts.IN_PROGRESS++;
+      } else if (item.slot.status === "COMPLETED") {
+        counts.COMPLETED++;
+      } else if (item.slot.status === "ABSENT") {
+        counts.ABSENT++;
+      }
+    }
+    return counts;
+  }, [items]);
+
+  const visible = items.filter(
+    (item) =>
+      (filter === "history"
+        ? isSlotHistory(item.slot)
+        : !isSlotHistory(item.slot)) &&
+      matchesStatus(item.slot.status, statusFilter),
   );
 
   const query = searchQuery.trim().toLowerCase();
   const roster = items.filter(
     (item) =>
-      !query ||
-      item.slot.studentName.toLowerCase().includes(query) ||
-      item.slot.studentCode.toLowerCase().includes(query),
+      matchesStatus(item.slot.status, statusFilter) &&
+      (!query ||
+        item.slot.studentName.toLowerCase().includes(query) ||
+        item.slot.studentCode.toLowerCase().includes(query)),
   );
 
   const selectTab = useCallback((next: typeof tab) => {
     setSelected("");
     setActionFeedback(null);
     setActionError(null);
+    setStatusFilter("ALL");
     setTab(next);
   }, []);
 
@@ -216,6 +260,8 @@ export function useLecturerOverview(
   return {
     tab,
     filter,
+    statusFilter,
+    statusCounts,
     selected,
     searchQuery,
     courses,
@@ -233,6 +279,7 @@ export function useLecturerOverview(
     roster,
     item: items.find((item) => item.slot.attemptId === selected),
     setFilter,
+    setStatusFilter,
     setSelected,
     setSearchQuery,
     selectTab,

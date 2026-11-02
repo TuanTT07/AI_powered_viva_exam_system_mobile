@@ -14,7 +14,10 @@ import type { AuthUser } from "../auth/auth-model";
 import { Icon } from "../../components/ui/Icon";
 import { Brand } from "../../components/ui/Brand";
 import { dateKey, day, labels, time, type Slot } from "../schedule/model";
-import { useLecturerOverview } from "./use-lecturer-overview";
+import {
+  useLecturerOverview,
+  type SlotStatusFilter,
+} from "./use-lecturer-overview";
 import {
   Action,
   Empty,
@@ -30,6 +33,14 @@ const tabs = [
   { id: "roster", label: "Danh sách thi", icon: "score" },
   { id: "profile", label: "Hồ sơ", icon: "profile" },
 ] as const;
+
+const statusOptions: { id: SlotStatusFilter; label: string }[] = [
+  { id: "ALL", label: "Tất cả" },
+  { id: "READY", label: "Sẵn sàng" },
+  { id: "IN_PROGRESS", label: "Đang thi" },
+  { id: "ABSENT", label: "Vắng mặt" },
+  { id: "COMPLETED", label: "Hoàn tất" },
+];
 
 export function LecturerScheduleScreen({
   slots: initialSlots = [],
@@ -49,6 +60,8 @@ export function LecturerScheduleScreen({
   const {
     tab,
     filter,
+    statusFilter,
+    statusCounts,
     selected,
     searchQuery,
     exams,
@@ -67,6 +80,7 @@ export function LecturerScheduleScreen({
     roster,
     setSelected,
     setFilter,
+    setStatusFilter,
     setSearchQuery,
     selectTab,
     refresh,
@@ -545,6 +559,55 @@ export function LecturerScheduleScreen({
                 ))}
               </View>
 
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.statusChipsContainer}
+                contentContainerStyle={styles.statusChipsRow}
+              >
+                {statusOptions.map((opt) => {
+                  const count = statusCounts[opt.id];
+                  const active = statusFilter === opt.id;
+                  return (
+                    <Pressable
+                      key={opt.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${opt.label} (${count})`}
+                      accessibilityState={{ selected: active }}
+                      onPress={() => setStatusFilter(opt.id)}
+                      style={[
+                        styles.statusChip,
+                        active && styles.statusChipActive,
+                      ]}
+                    >
+                      <Type
+                        style={[
+                          styles.statusChipText,
+                          active && styles.statusChipTextActive,
+                        ]}
+                      >
+                        {opt.label}
+                      </Type>
+                      <View
+                        style={[
+                          styles.statusChipBadge,
+                          active && styles.statusChipBadgeActive,
+                        ]}
+                      >
+                        <Type
+                          style={[
+                            styles.statusChipBadgeText,
+                            active && styles.statusChipBadgeTextActive,
+                          ]}
+                        >
+                          {count}
+                        </Type>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+
               {visible.length ? (
                 visible.map((entry) => (
                   <Surface key={entry.slot.attemptId}>
@@ -583,7 +646,9 @@ export function LecturerScheduleScreen({
                   description={
                     exams.length === 0
                       ? "Tài khoản giảng viên chưa có kỳ thi hoặc chưa được phân công môn học trong hệ thống."
-                      : "Kỳ thi đã được tạo nhưng chưa xếp ca thi cho thí sinh (cần auto-schedule trên web quản trị)."
+                      : statusFilter !== "ALL"
+                        ? "Không có ca thi nào phù hợp với bộ lọc trạng thái đã chọn."
+                        : "Kỳ thi đã được tạo nhưng chưa xếp ca thi cho thí sinh (cần auto-schedule trên web quản trị)."
                   }
                 />
               )}
@@ -615,12 +680,84 @@ export function LecturerScheduleScreen({
                     onChangeText={setSearchQuery}
                     style={styles.searchInput}
                   />
+
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.statusChipsContainer}
+                    contentContainerStyle={styles.statusChipsRow}
+                  >
+                    {statusOptions.map((opt) => {
+                      const count = statusCounts[opt.id];
+                      const active = statusFilter === opt.id;
+                      return (
+                        <Pressable
+                          key={opt.id}
+                          accessibilityRole="button"
+                          accessibilityLabel={`${opt.label} (${count})`}
+                          accessibilityState={{ selected: active }}
+                          onPress={() => setStatusFilter(opt.id)}
+                          style={[
+                            styles.statusChip,
+                            active && styles.statusChipActive,
+                          ]}
+                        >
+                          <Type
+                            style={[
+                              styles.statusChipText,
+                              active && styles.statusChipTextActive,
+                            ]}
+                          >
+                            {opt.label}
+                          </Type>
+                          <View
+                            style={[
+                              styles.statusChipBadge,
+                              active && styles.statusChipBadgeActive,
+                            ]}
+                          >
+                            <Type
+                              style={[
+                                styles.statusChipBadgeText,
+                                active && styles.statusChipBadgeTextActive,
+                              ]}
+                            >
+                              {count}
+                            </Type>
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+
                   {roster.length ? (
                     roster.map((entry) => (
                       <Surface key={entry.slot.attemptId}>
-                        <Type style={s.eyebrow}>
-                          STT {String(entry.slot.slotNumber).padStart(2, "0")}
-                        </Type>
+                        <View style={s.row}>
+                          <Type style={s.eyebrow}>
+                            STT {String(entry.slot.slotNumber).padStart(2, "0")}
+                          </Type>
+                          <View
+                            style={[
+                              styles.status,
+                              {
+                                marginLeft: "auto",
+                                paddingVertical: 2,
+                                paddingHorizontal: 8,
+                              },
+                            ]}
+                          >
+                            <Type
+                              style={{
+                                color: palette.blue,
+                                fontSize: 11,
+                                fontFamily: "JakartaBold",
+                              }}
+                            >
+                              {labels[entry.slot.status] || entry.slot.status}
+                            </Type>
+                          </View>
+                        </View>
                         <Type style={s.h2}>{entry.slot.studentName}</Type>
                         <Type style={s.muted}>
                           Mã sinh viên: {entry.slot.studentCode}
@@ -640,7 +777,11 @@ export function LecturerScheduleScreen({
                     <Empty
                       icon="score"
                       title="Không tìm thấy thí sinh"
-                      description="Thử tìm kiếm với từ khóa khác."
+                      description={
+                        statusFilter !== "ALL"
+                          ? "Không có thí sinh nào phù hợp với bộ lọc trạng thái và từ khóa tìm kiếm."
+                          : "Thử tìm kiếm với từ khóa khác."
+                      }
                     />
                   )}
                 </>
@@ -992,5 +1133,53 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#0f172a",
     marginTop: 4,
+  },
+  statusChipsContainer: {
+    marginBottom: 16,
+  },
+  statusChipsRow: {
+    flexDirection: "row",
+    gap: 8,
+    paddingVertical: 4,
+  },
+  statusChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    gap: 6,
+  },
+  statusChipActive: {
+    backgroundColor: palette.soft,
+    borderColor: palette.blue,
+  },
+  statusChipText: {
+    fontFamily: "JakartaBold",
+    fontSize: 13,
+    color: "#64748b",
+  },
+  statusChipTextActive: {
+    color: palette.blue,
+  },
+  statusChipBadge: {
+    backgroundColor: "#f1f5f9",
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 10,
+  },
+  statusChipBadgeActive: {
+    backgroundColor: palette.blue,
+  },
+  statusChipBadgeText: {
+    fontFamily: "JakartaBold",
+    fontSize: 11,
+    color: "#64748b",
+  },
+  statusChipBadgeTextActive: {
+    color: "#fff",
   },
 });

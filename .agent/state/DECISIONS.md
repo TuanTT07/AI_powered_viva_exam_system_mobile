@@ -54,6 +54,16 @@ User requested creating a new branch (`lecturer-monitoring-reschedule`, without 
   - Cleaned up legacy `useSchedule` mock hook and unused `slots` prop from `App.tsx`.
   - Both `StudentScheduleScreen` and `LecturerScheduleScreen` now cleanly connect to live backend APIs independently.
 
+## 2026-11-02 · Lecturer Advanced Status Filters & Android APK Packaging
+User requested implementing advanced status filters for lecturers and packaging the native Android APK:
+- **Lecturer Status Filtering**:
+  - Added multi-status filtering (`ALL`, `READY`, `IN_PROGRESS`, `COMPLETED`, `ABSENT`) in both Schedule and Roster tabs with live candidate counts.
+  - Added candidate status badge to roster cards.
+  - Automatically resets status filter to `ALL` upon tab transition.
+- **Standalone Android APK Packaging**:
+  - Built standalone production/debug-signed Android APK using Gradle (`cd android && ./gradlew assembleRelease`).
+
+
 
 
 
