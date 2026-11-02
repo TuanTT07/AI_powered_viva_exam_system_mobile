@@ -133,3 +133,82 @@ export async function resetCandidateAttempt(
   return mapBackendSlot(result);
 }
 
+export type ExamMonitoringDto = {
+  examId: string;
+  examTitle: string;
+  totalCandidates: number;
+  scheduledCount: number;
+  readyCount: number;
+  inProgressCount: number;
+  completedCount: number;
+  absentCount: number;
+  completionRate: number;
+};
+
+export async function getExamMonitoring(
+  token: string,
+  examId: string,
+  options?: { signal?: AbortSignal },
+): Promise<ExamMonitoringDto> {
+  const result = (await apiRequest(
+    `/api/v1/exams/${encodeURIComponent(examId)}/monitor`,
+    {
+      method: "GET",
+      token,
+      signal: options?.signal,
+    },
+  )) as ExamMonitoringDto;
+
+  return result;
+}
+
+export type RescheduleRequest = {
+  studentId: string;
+  newScheduledStartTime: string;
+  newScheduledEndTime: string;
+};
+
+export async function rescheduleCandidate(
+  token: string,
+  examId: string,
+  request: RescheduleRequest,
+  options?: { signal?: AbortSignal },
+): Promise<Slot> {
+  const result = (await apiRequest(
+    `/api/v1/exams/${encodeURIComponent(examId)}/schedule/reschedule`,
+    {
+      method: "PUT",
+      token,
+      body: request,
+      signal: options?.signal,
+    },
+  )) as BackendCandidateScheduleDto;
+
+  return mapBackendSlot(result);
+}
+
+export type LecturerCourseDto = {
+  id: string;
+  courseCode: string;
+  courseName: string;
+  department?: string;
+  createdAt?: string;
+};
+
+export async function getLecturerCourses(
+  token: string,
+  lecturerId: string,
+  options?: { signal?: AbortSignal },
+): Promise<LecturerCourseDto[]> {
+  const result = (await apiRequest(
+    `/api/lecturers/${encodeURIComponent(lecturerId)}/courses`,
+    {
+      method: "GET",
+      token,
+      signal: options?.signal,
+    },
+  )) as LecturerCourseDto[];
+
+  return Array.isArray(result) ? result : [];
+}
+

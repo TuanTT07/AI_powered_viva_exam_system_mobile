@@ -52,6 +52,7 @@ export function LecturerScheduleScreen({
     selected,
     searchQuery,
     exams,
+    courses,
     slots,
     loading,
     refreshing,
@@ -72,7 +73,7 @@ export function LecturerScheduleScreen({
     markAbsent,
     resetAttempt,
     clearFeedback,
-  } = useLecturerOverview(initialSlots, token);
+  } = useLecturerOverview(initialSlots, token, user.id);
 
   useEffect(() => {
     if (Platform.OS === "web") return;
@@ -464,6 +465,21 @@ export function LecturerScheduleScreen({
                   </View>
                 ))}
               </Surface>
+              {courses.length > 0 ? (
+                <Surface>
+                  <Type style={s.eyebrow}>
+                    MÔN HỌC ĐƯỢC PHÂN CÔNG ({courses.length})
+                  </Type>
+                  {courses.map((c) => (
+                    <View key={c.id} style={{ paddingVertical: 4 }}>
+                      <Type style={{ fontFamily: "JakartaBold" }}>
+                        {c.courseCode}
+                      </Type>
+                      <Type style={s.muted}>{c.courseName}</Type>
+                    </View>
+                  ))}
+                </Surface>
+              ) : null}
               <Surface>
                 <View style={s.row}>
                   <Icon name="lock" />
