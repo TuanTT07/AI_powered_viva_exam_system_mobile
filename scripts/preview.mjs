@@ -59,12 +59,16 @@ const server = http.createServer(async (req, res) => {
       const isExamAllowed = endpoint.startsWith("/api/v1/exams");
       const isLecturerAllowed = endpoint.startsWith("/api/lecturers");
       const isStudentAllowed = endpoint.startsWith("/api/v1/student");
+      const isCourseAllowed = endpoint.startsWith("/api/courses");
+      const isEvaluationAllowed = endpoint.startsWith("/api/question-attempts");
 
       if (
         !isAuthAllowed &&
         !isExamAllowed &&
         !isLecturerAllowed &&
-        !isStudentAllowed
+        !isStudentAllowed &&
+        !isCourseAllowed &&
+        !isEvaluationAllowed
       )
         return error(res, 404, "Endpoint unavailable.");
       const chunks = [];

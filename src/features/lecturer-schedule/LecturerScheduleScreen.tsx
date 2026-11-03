@@ -14,7 +14,10 @@ import type { AuthUser } from "../auth/auth-model";
 import { Icon } from "../../components/ui/Icon";
 import { Brand } from "../../components/ui/Brand";
 import { dateKey, day, labels, time, type Slot } from "../schedule/model";
-import { useLecturerOverview } from "./use-lecturer-overview";
+import {
+  useLecturerOverview,
+  type SlotStatusFilter,
+} from "./use-lecturer-overview";
 import {
   Action,
   Empty,
@@ -27,9 +30,18 @@ import {
 
 const tabs = [
   { id: "schedule", label: "Lịch coi thi", icon: "calendar" },
-  { id: "roster", label: "Danh sách thi", icon: "score" },
+  { id: "roster", label: "Danh sách thi", icon: "list" },
+  { id: "grades", label: "Điểm thi", icon: "score" },
   { id: "profile", label: "Hồ sơ", icon: "profile" },
 ] as const;
+
+const statusOptions: { id: SlotStatusFilter; label: string }[] = [
+  { id: "ALL", label: "Tất cả" },
+  { id: "READY", label: "Sẵn sàng" },
+  { id: "IN_PROGRESS", label: "Đang thi" },
+  { id: "ABSENT", label: "Vắng mặt" },
+  { id: "COMPLETED", label: "Hoàn tất" },
+];
 
 export function LecturerScheduleScreen({
   slots: initialSlots = [],
@@ -49,6 +61,8 @@ export function LecturerScheduleScreen({
   const {
     tab,
     filter,
+    statusFilter,
+    statusCounts,
     selected,
     searchQuery,
     exams,
@@ -65,8 +79,19 @@ export function LecturerScheduleScreen({
     visible,
     items,
     roster,
+    selectedCourseId,
+    evaluationFilter,
+    evaluations,
+    evaluationsLoading,
+    evaluationsError,
+    selectedEvaluationId,
+    selectedEvaluation,
+    setSelectedCourseId,
+    setEvaluationFilter,
+    setSelectedEvaluationId,
     setSelected,
     setFilter,
+    setStatusFilter,
     setSearchQuery,
     selectTab,
     refresh,
@@ -74,6 +99,7 @@ export function LecturerScheduleScreen({
     markAbsent,
     resetAttempt,
     reschedule,
+    updateStatus,
     clearFeedback,
   } = useLecturerOverview(initialSlots, token, user.id);
 
@@ -86,7 +112,9 @@ export function LecturerScheduleScreen({
   useEffect(() => {
     if (Platform.OS === "web") return;
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      if (selected) {
+      if (selectedEvaluationId) {
+        setSelectedEvaluationId("");
+      } else if (selected) {
         setSelected("");
         setShowReschedule(false);
       } else if (tab !== "schedule") {
@@ -97,7 +125,7 @@ export function LecturerScheduleScreen({
       return true;
     });
     return () => sub.remove();
-  }, [selected, tab, onExit, setSelected, selectTab]);
+  }, [selected, selectedEvaluationId, tab, onExit, setSelected, setSelectedEvaluationId, selectTab]);
 
   return (
     <View style={styles.root}>
@@ -108,7 +136,7 @@ export function LecturerScheduleScreen({
         </View>
       </View>
       <ScrollView
-        key={`${tab}-${selected}`}
+        key={`${tab}-${selected}-${selectedEvaluationId}`}
         style={{ flex: 1 }}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
@@ -509,6 +537,26 @@ export function LecturerScheduleScreen({
                             ? `${examSlots.length} ca thi đã được xếp lịch`
                             : "Kỳ thi chưa có ca thi nào được xếp lịch"}
                         </Type>
+
+                        {ex.status === "PUBLISHED" ? (
+                          <View style={{ marginTop: 8 }}>
+                            <Action
+                              secondary
+                              disabled={actionLoading}
+                              label="Bắt đầu kỳ thi (IN_PROGRESS)"
+                              onPress={() => updateStatus(ex.id, "IN_PROGRESS")}
+                            />
+                          </View>
+                        ) : ex.status === "IN_PROGRESS" ? (
+                          <View style={{ marginTop: 8 }}>
+                            <Action
+                              secondary
+                              disabled={actionLoading}
+                              label="Hoàn tất kỳ thi (COMPLETED)"
+                              onPress={() => updateStatus(ex.id, "COMPLETED")}
+                            />
+                          </View>
+                        ) : null}
                       </Surface>
                     );
                   })}
@@ -544,6 +592,55 @@ export function LecturerScheduleScreen({
                   </Pressable>
                 ))}
               </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.statusChipsContainer}
+                contentContainerStyle={styles.statusChipsRow}
+              >
+                {statusOptions.map((opt) => {
+                  const count = statusCounts[opt.id];
+                  const active = statusFilter === opt.id;
+                  return (
+                    <Pressable
+                      key={opt.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${opt.label} (${count})`}
+                      accessibilityState={{ selected: active }}
+                      onPress={() => setStatusFilter(opt.id)}
+                      style={[
+                        styles.statusChip,
+                        active && styles.statusChipActive,
+                      ]}
+                    >
+                      <Type
+                        style={[
+                          styles.statusChipText,
+                          active && styles.statusChipTextActive,
+                        ]}
+                      >
+                        {opt.label}
+                      </Type>
+                      <View
+                        style={[
+                          styles.statusChipBadge,
+                          active && styles.statusChipBadgeActive,
+                        ]}
+                      >
+                        <Type
+                          style={[
+                            styles.statusChipBadgeText,
+                            active && styles.statusChipBadgeTextActive,
+                          ]}
+                        >
+                          {count}
+                        </Type>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
 
               {visible.length ? (
                 visible.map((entry) => (
@@ -583,7 +680,9 @@ export function LecturerScheduleScreen({
                   description={
                     exams.length === 0
                       ? "Tài khoản giảng viên chưa có kỳ thi hoặc chưa được phân công môn học trong hệ thống."
-                      : "Kỳ thi đã được tạo nhưng chưa xếp ca thi cho thí sinh (cần auto-schedule trên web quản trị)."
+                      : statusFilter !== "ALL"
+                        ? "Không có ca thi nào phù hợp với bộ lọc trạng thái đã chọn."
+                        : "Kỳ thi đã được tạo nhưng chưa xếp ca thi cho thí sinh (cần auto-schedule trên web quản trị)."
                   }
                 />
               )}
@@ -615,12 +714,84 @@ export function LecturerScheduleScreen({
                     onChangeText={setSearchQuery}
                     style={styles.searchInput}
                   />
+
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.statusChipsContainer}
+                    contentContainerStyle={styles.statusChipsRow}
+                  >
+                    {statusOptions.map((opt) => {
+                      const count = statusCounts[opt.id];
+                      const active = statusFilter === opt.id;
+                      return (
+                        <Pressable
+                          key={opt.id}
+                          accessibilityRole="button"
+                          accessibilityLabel={`${opt.label} (${count})`}
+                          accessibilityState={{ selected: active }}
+                          onPress={() => setStatusFilter(opt.id)}
+                          style={[
+                            styles.statusChip,
+                            active && styles.statusChipActive,
+                          ]}
+                        >
+                          <Type
+                            style={[
+                              styles.statusChipText,
+                              active && styles.statusChipTextActive,
+                            ]}
+                          >
+                            {opt.label}
+                          </Type>
+                          <View
+                            style={[
+                              styles.statusChipBadge,
+                              active && styles.statusChipBadgeActive,
+                            ]}
+                          >
+                            <Type
+                              style={[
+                                styles.statusChipBadgeText,
+                                active && styles.statusChipBadgeTextActive,
+                              ]}
+                            >
+                              {count}
+                            </Type>
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+
                   {roster.length ? (
                     roster.map((entry) => (
                       <Surface key={entry.slot.attemptId}>
-                        <Type style={s.eyebrow}>
-                          STT {String(entry.slot.slotNumber).padStart(2, "0")}
-                        </Type>
+                        <View style={s.row}>
+                          <Type style={s.eyebrow}>
+                            STT {String(entry.slot.slotNumber).padStart(2, "0")}
+                          </Type>
+                          <View
+                            style={[
+                              styles.status,
+                              {
+                                marginLeft: "auto",
+                                paddingVertical: 2,
+                                paddingHorizontal: 8,
+                              },
+                            ]}
+                          >
+                            <Type
+                              style={{
+                                color: palette.blue,
+                                fontSize: 11,
+                                fontFamily: "JakartaBold",
+                              }}
+                            >
+                              {labels[entry.slot.status] || entry.slot.status}
+                            </Type>
+                          </View>
+                        </View>
                         <Type style={s.h2}>{entry.slot.studentName}</Type>
                         <Type style={s.muted}>
                           Mã sinh viên: {entry.slot.studentCode}
@@ -640,7 +811,11 @@ export function LecturerScheduleScreen({
                     <Empty
                       icon="score"
                       title="Không tìm thấy thí sinh"
-                      description="Thử tìm kiếm với từ khóa khác."
+                      description={
+                        statusFilter !== "ALL"
+                          ? "Không có thí sinh nào phù hợp với bộ lọc trạng thái và từ khóa tìm kiếm."
+                          : "Thử tìm kiếm với từ khóa khác."
+                      }
                     />
                   )}
                 </>
@@ -652,6 +827,436 @@ export function LecturerScheduleScreen({
                 />
               )}
             </>
+          ) : tab === "grades" ? (
+            selectedEvaluation ? (
+              <>
+                <Action
+                  secondary
+                  label="Quay lại danh sách đánh giá"
+                  icon="back"
+                  onPress={() => setSelectedEvaluationId("")}
+                />
+                <Surface>
+                  <View style={s.row}>
+                    <Type style={s.eyebrow}>CHI TIẾT ĐÁNH GIÁ</Type>
+                    <View
+                      style={[
+                        styles.status,
+                        {
+                          marginLeft: "auto",
+                          backgroundColor:
+                            selectedEvaluation.status === "GRADED"
+                              ? "#ecfdf5"
+                              : "#fef3c7",
+                        },
+                      ]}
+                    >
+                      <Type
+                        style={{
+                          color:
+                            selectedEvaluation.status === "GRADED"
+                              ? "#059669"
+                              : "#d97706",
+                          fontSize: 12,
+                          fontFamily: "JakartaBold",
+                        }}
+                      >
+                        {selectedEvaluation.status === "GRADED"
+                          ? "Đã chốt điểm"
+                          : "Chờ duyệt"}
+                      </Type>
+                    </View>
+                  </View>
+
+                  <Type style={[s.h2, { marginTop: 8 }]}>Câu hỏi thi</Type>
+                  <Type
+                    style={{
+                      fontSize: 15,
+                      lineHeight: 22,
+                      color: "#1e293b",
+                      marginVertical: 6,
+                    }}
+                  >
+                    {selectedEvaluation.questionContent}
+                  </Type>
+
+                  <View style={s.rule} />
+
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      gap: 12,
+                      marginVertical: 8,
+                    }}
+                  >
+                    <View
+                      style={{
+                        flex: 1,
+                        backgroundColor: "#f8fafc",
+                        padding: 12,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: "#e2e8f0",
+                      }}
+                    >
+                      <Type style={s.detailLabel}>ĐIỂM AI GỢI Ý</Type>
+                      <Type
+                        style={[s.h1, { color: palette.blue, marginTop: 4 }]}
+                      >
+                        {selectedEvaluation.aiSuggestedScore !== undefined
+                          ? selectedEvaluation.aiSuggestedScore.toFixed(1)
+                          : "—"}
+                        <Type style={s.muted}>
+                          {" "}
+                          / {selectedEvaluation.maxScore ?? 10}
+                        </Type>
+                      </Type>
+                    </View>
+
+                    <View
+                      style={{
+                        flex: 1,
+                        backgroundColor: "#f8fafc",
+                        padding: 12,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: "#e2e8f0",
+                      }}
+                    >
+                      <Type style={s.detailLabel}>ĐIỂM CHÍNH THỨC</Type>
+                      <Type
+                        style={[
+                          s.h1,
+                          {
+                            color:
+                              selectedEvaluation.finalScore !== undefined
+                                ? "#10b981"
+                                : "#64748b",
+                            marginTop: 4,
+                          },
+                        ]}
+                      >
+                        {selectedEvaluation.finalScore !== undefined
+                          ? selectedEvaluation.finalScore.toFixed(1)
+                          : "Chờ duyệt"}
+                        {selectedEvaluation.finalScore !== undefined && (
+                          <Type style={s.muted}>
+                            {" "}
+                            / {selectedEvaluation.maxScore ?? 10}
+                          </Type>
+                        )}
+                      </Type>
+                    </View>
+                  </View>
+
+                  {selectedEvaluation.gradedByName ? (
+                    <Type style={[s.detailLabel, { marginTop: 4 }]}>
+                      Người đánh giá: {selectedEvaluation.gradedByName}
+                    </Type>
+                  ) : null}
+                </Surface>
+
+                {selectedEvaluation.criteria &&
+                selectedEvaluation.criteria.length > 0 ? (
+                  <Surface>
+                    <Type style={s.eyebrow}>
+                      TIÊU CHÍ ĐÁNH GIÁ ({selectedEvaluation.criteria.length})
+                    </Type>
+                    {selectedEvaluation.criteria.map((cr, idx) => (
+                      <View
+                        key={cr.criterionId || idx}
+                        style={{
+                          paddingVertical: 10,
+                          borderBottomWidth:
+                            idx ===
+                            (selectedEvaluation.criteria?.length ?? 0) - 1
+                              ? 0
+                              : 1,
+                          borderColor: "#f1f5f9",
+                        }}
+                      >
+                        <View
+                          style={[
+                            s.row,
+                            {
+                              justifyContent: "space-between",
+                              alignItems: "flex-start",
+                            },
+                          ]}
+                        >
+                          <Type
+                            style={{
+                              fontFamily: "JakartaBold",
+                              flex: 1,
+                              fontSize: 14,
+                            }}
+                          >
+                            {cr.criterionName}
+                          </Type>
+                          <Type
+                            style={{
+                              color: palette.blue,
+                              fontFamily: "JakartaBold",
+                              fontSize: 14,
+                              marginLeft: 8,
+                            }}
+                          >
+                            {cr.finalScore ?? cr.aiScore ?? "—"}/{cr.maxScore}
+                          </Type>
+                        </View>
+                        {cr.comment ? (
+                          <Type style={[s.muted, { fontSize: 13, marginTop: 4 }]}>
+                            {cr.comment}
+                          </Type>
+                        ) : null}
+                      </View>
+                    ))}
+                  </Surface>
+                ) : null}
+
+                <Surface>
+                  <Type style={s.eyebrow}>NHẬN XÉT TỔNG THỂ</Type>
+                  <Type
+                    style={{
+                      fontSize: 14,
+                      lineHeight: 22,
+                      color: "#334155",
+                      marginTop: 4,
+                    }}
+                  >
+                    {selectedEvaluation.overallFeedback ||
+                      "Chưa có nhận xét tổng thể."}
+                  </Type>
+                </Surface>
+              </>
+            ) : (
+              <>
+                <View style={s.section}>
+                  <Type style={s.eyebrow}>KẾT QUẢ ĐÁNH GIÁ</Type>
+                  <Type
+                    accessibilityRole="header"
+                    aria-level={1}
+                    style={s.h1}
+                  >
+                    Điểm thi môn học
+                  </Type>
+                  <Type style={s.muted}>
+                    Xem điểm gợi ý từ AI và điểm chốt theo từng câu hỏi của môn
+                    phụ trách.
+                  </Type>
+                </View>
+
+                {courses.length > 0 ? (
+                  <View style={{ marginBottom: 12 }}>
+                    <Type style={[s.detailLabel, { marginBottom: 6 }]}>
+                      MÔN HỌC PHỤ TRÁCH:
+                    </Type>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{ gap: 8 }}
+                    >
+                      {courses.map((c) => {
+                        const active = selectedCourseId === c.id;
+                        return (
+                          <Pressable
+                            key={c.id}
+                            accessibilityRole="button"
+                            onPress={() => setSelectedCourseId(c.id)}
+                            style={[
+                              styles.statusChip,
+                              active && styles.statusChipActive,
+                            ]}
+                          >
+                            <Type
+                              style={[
+                                styles.statusChipText,
+                                active && styles.statusChipTextActive,
+                              ]}
+                            >
+                              {c.courseCode} - {c.courseName}
+                            </Type>
+                          </Pressable>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+                ) : (
+                  <Empty
+                    icon="score"
+                    title="Chưa có môn học"
+                    description="Bạn chưa được phân công phụ trách môn học nào."
+                  />
+                )}
+
+                {selectedCourseId ? (
+                  <>
+                    <View style={styles.filters}>
+                      {(
+                        [
+                          { id: "ALL", label: "Tất cả" },
+                          { id: "PENDING_REVIEW", label: "Chờ duyệt" },
+                          { id: "GRADED", label: "Đã chốt" },
+                        ] as const
+                      ).map((opt) => {
+                        const active = evaluationFilter === opt.id;
+                        return (
+                          <Pressable
+                            key={opt.id}
+                            accessibilityRole="button"
+                            onPress={() => setEvaluationFilter(opt.id)}
+                            style={[
+                              styles.filter,
+                              active && styles.activeFilter,
+                            ]}
+                          >
+                            <Type
+                              style={{
+                                color: active ? palette.blue : "#475569",
+                                fontFamily: "JakartaBold",
+                              }}
+                            >
+                              {opt.label}
+                            </Type>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+
+                    {evaluationsLoading ? (
+                      <ActivityIndicator
+                        size="large"
+                        color={palette.blue}
+                        style={{ marginVertical: 32 }}
+                      />
+                    ) : evaluationsError ? (
+                      <Surface>
+                        <Type style={{ color: "#ef4444", marginBottom: 8 }}>
+                          {evaluationsError}
+                        </Type>
+                        <Action
+                          secondary
+                          label="Thử lại"
+                          onPress={() => retry()}
+                        />
+                      </Surface>
+                    ) : evaluations.length === 0 ? (
+                      <Empty
+                        icon="score"
+                        title="Chưa có bài thi nào"
+                        description={
+                          evaluationFilter !== "ALL"
+                            ? "Không có bài thi nào phù hợp với bộ lọc trạng thái."
+                            : "Môn học này hiện chưa có bài thi nào được đánh giá điểm."
+                        }
+                      />
+                    ) : (
+                      evaluations.map((ev) => (
+                        <Surface key={ev.id}>
+                          <View
+                            style={[
+                              s.row,
+                              {
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                              },
+                            ]}
+                          >
+                            <Type style={s.eyebrow}>
+                              {ev.status === "GRADED"
+                                ? "ĐÃ CHỐT ĐIỂM"
+                                : "CHỜ DUYỆT"}
+                            </Type>
+                            <View
+                              style={[
+                                styles.status,
+                                {
+                                  backgroundColor:
+                                    ev.status === "GRADED"
+                                      ? "#ecfdf5"
+                                      : "#fef3c7",
+                                },
+                              ]}
+                            >
+                              <Type
+                                style={{
+                                  color:
+                                    ev.status === "GRADED"
+                                      ? "#059669"
+                                      : "#d97706",
+                                  fontSize: 11,
+                                  fontFamily: "JakartaBold",
+                                }}
+                              >
+                                {ev.status === "GRADED"
+                                  ? "Hoàn tất"
+                                  : "Chờ duyệt"}
+                              </Type>
+                            </View>
+                          </View>
+
+                          <Type
+                            numberOfLines={2}
+                            style={{
+                              fontFamily: "JakartaBold",
+                              fontSize: 15,
+                              color: "#0f172a",
+                              marginVertical: 4,
+                            }}
+                          >
+                            {ev.questionContent}
+                          </Type>
+
+                          <View
+                            style={[
+                              s.row,
+                              { gap: 16, marginTop: 4, marginBottom: 8 },
+                            ]}
+                          >
+                            <Type style={s.muted}>
+                              AI gợi ý:{" "}
+                              <Type
+                                style={{
+                                  color: palette.blue,
+                                  fontFamily: "JakartaBold",
+                                }}
+                              >
+                                {ev.aiSuggestedScore !== undefined
+                                  ? ev.aiSuggestedScore.toFixed(1)
+                                  : "—"}
+                              </Type>
+                            </Type>
+                            <Type style={s.muted}>
+                              Chính thức:{" "}
+                              <Type
+                                style={{
+                                  color:
+                                    ev.finalScore !== undefined
+                                      ? "#10b981"
+                                      : "#64748b",
+                                  fontFamily: "JakartaBold",
+                                }}
+                              >
+                                {ev.finalScore !== undefined
+                                  ? ev.finalScore.toFixed(1)
+                                  : "Chưa chốt"}
+                              </Type>
+                            </Type>
+                          </View>
+
+                          <Action
+                            secondary
+                            label="Xem chi tiết điểm"
+                            icon="arrow"
+                            onPress={() => setSelectedEvaluationId(ev.id)}
+                          />
+                        </Surface>
+                      ))
+                    )}
+                  </>
+                ) : null}
+              </>
+            )
           ) : (
             <>
               <View style={s.section}>
@@ -992,5 +1597,53 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#0f172a",
     marginTop: 4,
+  },
+  statusChipsContainer: {
+    marginBottom: 16,
+  },
+  statusChipsRow: {
+    flexDirection: "row",
+    gap: 8,
+    paddingVertical: 4,
+  },
+  statusChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    gap: 6,
+  },
+  statusChipActive: {
+    backgroundColor: palette.soft,
+    borderColor: palette.blue,
+  },
+  statusChipText: {
+    fontFamily: "JakartaBold",
+    fontSize: 13,
+    color: "#64748b",
+  },
+  statusChipTextActive: {
+    color: palette.blue,
+  },
+  statusChipBadge: {
+    backgroundColor: "#f1f5f9",
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 10,
+  },
+  statusChipBadgeActive: {
+    backgroundColor: palette.blue,
+  },
+  statusChipBadgeText: {
+    fontFamily: "JakartaBold",
+    fontSize: 11,
+    color: "#64748b",
+  },
+  statusChipBadgeTextActive: {
+    color: "#fff",
   },
 });

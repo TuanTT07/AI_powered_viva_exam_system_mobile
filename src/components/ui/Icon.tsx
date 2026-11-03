@@ -7,7 +7,8 @@ export type IconName =
   | "back"
   | "clock"
   | "lock"
-  | "exit";
+  | "exit"
+  | "list";
 export function Icon({
   name,
   color = "#2563eb",
@@ -63,6 +64,9 @@ export function Icon({
       )}
       {name === "exit" && (
         <Path d="M10 4H6a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h4m-1-8h12m-4-4 4 4-4 4" />
+      )}
+      {name === "list" && (
+        <Path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
       )}
     </Svg>
   );

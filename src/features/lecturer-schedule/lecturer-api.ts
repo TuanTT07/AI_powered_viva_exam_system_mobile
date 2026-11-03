@@ -212,3 +212,103 @@ export async function getLecturerCourses(
   return Array.isArray(result) ? result : [];
 }
 
+export type CriterionScoreDto = {
+  criterionId: string;
+  criterionName: string;
+  maxScore: number;
+  aiScore: number;
+  finalScore: number;
+  comment?: string;
+};
+
+export type CourseEvaluationDto = {
+  id: string;
+  questionAttemptId: string;
+  questionId: string;
+  questionContent: string;
+  gradedById?: string;
+  gradedByName?: string;
+  aiSuggestedScore?: number;
+  finalScore?: number;
+  maxScore?: number;
+  overallFeedback?: string;
+  criteria?: CriterionScoreDto[];
+  status: "PENDING_REVIEW" | "GRADED";
+  createdAt: string;
+  updatedAt?: string;
+};
+
+export type CourseEvaluationsPageDto = {
+  content: CourseEvaluationDto[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+};
+
+export async function getCourseEvaluations(
+  token: string,
+  courseId: string,
+  options?: {
+    status?: "PENDING_REVIEW" | "GRADED";
+    page?: number;
+    size?: number;
+    signal?: AbortSignal;
+  },
+): Promise<CourseEvaluationDto[]> {
+  const query = new URLSearchParams({
+    page: String(options?.page ?? 0),
+    size: String(options?.size ?? 50),
+  });
+  if (options?.status) {
+    query.set("status", options.status);
+  }
+
+  const result = (await apiRequest(
+    `/api/courses/${encodeURIComponent(courseId)}/evaluations?${query.toString()}`,
+    {
+      method: "GET",
+      token,
+      signal: options?.signal,
+    },
+  )) as CourseEvaluationsPageDto | { content?: CourseEvaluationDto[] };
+
+  const content = Array.isArray(result?.content) ? result.content : [];
+  return content;
+}
+
+export async function getQuestionEvaluationDetail(
+  token: string,
+  questionAttemptId: string,
+  options?: { signal?: AbortSignal },
+): Promise<CourseEvaluationDto> {
+  const result = (await apiRequest(
+    `/api/question-attempts/${encodeURIComponent(questionAttemptId)}/evaluation`,
+    {
+      method: "GET",
+      token,
+      signal: options?.signal,
+    },
+  )) as CourseEvaluationDto;
+
+  return result;
+}
+
+export async function updateExamStatus(
+  token: string,
+  examId: string,
+  status: "DRAFT" | "PUBLISHED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED",
+  options?: { signal?: AbortSignal },
+): Promise<void> {
+  await apiRequest(
+    `/api/v1/exams/${encodeURIComponent(examId)}/status`,
+    {
+      method: "PATCH",
+      token,
+      body: { status },
+      signal: options?.signal,
+    },
+  );
+}
+
+
