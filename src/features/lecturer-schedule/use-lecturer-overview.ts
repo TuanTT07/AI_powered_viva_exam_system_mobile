@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Exam, Slot, SlotStatus } from "../schedule/model";
 import { isSlotHistory, lecturerSlots } from "./lecturer-model";
 import {
+  getCourseEvaluations,
   getExamMonitoring,
   getExamSchedules,
   getLecturerCourses,
@@ -9,6 +10,8 @@ import {
   markCandidateAbsent,
   rescheduleCandidate,
   resetCandidateAttempt,
+  updateExamStatus,
+  type CourseEvaluationDto,
   type ExamMonitoringDto,
   type LecturerCourseDto,
 } from "./lecturer-api";
@@ -20,12 +23,16 @@ export type SlotStatusFilter =
   | "COMPLETED"
   | "ABSENT";
 
+export type EvaluationStatusFilter = "ALL" | "PENDING_REVIEW" | "GRADED";
+
 export function useLecturerOverview(
   initialSlots: Slot[] = [],
   token?: string,
   userId?: string,
 ) {
-  const [tab, setTab] = useState<"schedule" | "roster" | "profile">("schedule");
+  const [tab, setTab] = useState<"schedule" | "roster" | "grades" | "profile">(
+    "schedule",
+  );
   const [filter, setFilter] = useState<"upcoming" | "history">("upcoming");
   const [statusFilter, setStatusFilter] = useState<SlotStatusFilter>("ALL");
   const [selected, setSelected] = useState("");
@@ -45,6 +52,15 @@ export function useLecturerOverview(
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  // Grades / Evaluations
+  const [selectedCourseId, setSelectedCourseId] = useState<string>("");
+  const [evaluationFilter, setEvaluationFilter] =
+    useState<EvaluationStatusFilter>("ALL");
+  const [evaluations, setEvaluations] = useState<CourseEvaluationDto[]>([]);
+  const [evaluationsLoading, setEvaluationsLoading] = useState(false);
+  const [evaluationsError, setEvaluationsError] = useState<string | null>(null);
+  const [selectedEvaluationId, setSelectedEvaluationId] = useState<string>("");
+
   const loadData = useCallback(
     async (isPullToRefresh = false) => {
       if (!token) return;
@@ -61,6 +77,10 @@ export function useLecturerOverview(
         ]);
         setExams(fetchedExams);
         setCourses(fetchedCourses);
+
+        if (fetchedCourses.length > 0) {
+          setSelectedCourseId((prev) => prev || fetchedCourses[0].id);
+        }
 
         if (fetchedExams.length === 0) {
           setSlots([]);
@@ -102,9 +122,39 @@ export function useLecturerOverview(
     [token, userId],
   );
 
+  const loadEvaluations = useCallback(
+    async (
+      courseId: string,
+      filterVal: EvaluationStatusFilter = evaluationFilter,
+    ) => {
+      if (!token || !courseId) return;
+      setEvaluationsLoading(true);
+      setEvaluationsError(null);
+      try {
+        const evals = await getCourseEvaluations(token, courseId, {
+          status: filterVal === "ALL" ? undefined : filterVal,
+        });
+        setEvaluations(evals);
+      } catch (e) {
+        setEvaluationsError(
+          (e as Error).message || "Không thể tải dữ liệu đánh giá điểm.",
+        );
+      } finally {
+        setEvaluationsLoading(false);
+      }
+    },
+    [token, evaluationFilter],
+  );
+
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    if (tab === "grades" && selectedCourseId) {
+      void loadEvaluations(selectedCourseId, evaluationFilter);
+    }
+  }, [tab, selectedCourseId, evaluationFilter, loadEvaluations]);
 
   const items = lecturerSlots(slots, exams);
 
@@ -156,6 +206,7 @@ export function useLecturerOverview(
 
   const selectTab = useCallback((next: typeof tab) => {
     setSelected("");
+    setSelectedEvaluationId("");
     setActionFeedback(null);
     setActionError(null);
     setStatusFilter("ALL");
@@ -173,7 +224,6 @@ export function useLecturerOverview(
         setSlots((prev) =>
           prev.map((s) => (s.attemptId === attemptId ? updated : s)),
         );
-        // Refresh monitoring
         getExamMonitoring(token, examId)
           .then((m) => {
             if (m?.examId)
@@ -201,7 +251,6 @@ export function useLecturerOverview(
         setSlots((prev) =>
           prev.map((s) => (s.attemptId === attemptId ? updated : s)),
         );
-        // Refresh monitoring
         getExamMonitoring(token, examId)
           .then((m) => {
             if (m?.examId)
@@ -257,6 +306,32 @@ export function useLecturerOverview(
     [token],
   );
 
+  const handleUpdateExamStatus = useCallback(
+    async (
+      examId: string,
+      newStatus: "DRAFT" | "PUBLISHED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED",
+    ) => {
+      if (!token) return;
+      setActionLoading(true);
+      setActionFeedback(null);
+      setActionError(null);
+      try {
+        await updateExamStatus(token, examId, newStatus);
+        setExams((prev) =>
+          prev.map((e) => (e.id === examId ? { ...e, status: newStatus } : e)),
+        );
+        setActionFeedback(`Đã chuyển trạng thái kỳ thi thành "${newStatus}".`);
+      } catch (e) {
+        setActionError(
+          (e as Error).message || "Không thể cập nhật trạng thái kỳ thi.",
+        );
+      } finally {
+        setActionLoading(false);
+      }
+    },
+    [token],
+  );
+
   return {
     tab,
     filter,
@@ -278,16 +353,38 @@ export function useLecturerOverview(
     items,
     roster,
     item: items.find((item) => item.slot.attemptId === selected),
+    // Grades / Evaluations
+    selectedCourseId,
+    evaluationFilter,
+    evaluations,
+    evaluationsLoading,
+    evaluationsError,
+    selectedEvaluationId,
+    selectedEvaluation: evaluations.find((e) => e.id === selectedEvaluationId),
+    setSelectedCourseId,
+    setEvaluationFilter,
+    setSelectedEvaluationId,
     setFilter,
     setStatusFilter,
     setSelected,
     setSearchQuery,
     selectTab,
-    refresh: () => loadData(true),
-    retry: () => loadData(false),
+    refresh: () => {
+      void loadData(true);
+      if (tab === "grades" && selectedCourseId) {
+        void loadEvaluations(selectedCourseId, evaluationFilter);
+      }
+    },
+    retry: () => {
+      void loadData(false);
+      if (tab === "grades" && selectedCourseId) {
+        void loadEvaluations(selectedCourseId, evaluationFilter);
+      }
+    },
     markAbsent: handleMarkAbsent,
     resetAttempt: handleResetAttempt,
     reschedule: handleReschedule,
+    updateStatus: handleUpdateExamStatus,
     clearFeedback: () => {
       setActionFeedback(null);
       setActionError(null);
