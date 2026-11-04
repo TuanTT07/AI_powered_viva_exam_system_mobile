@@ -207,3 +207,29 @@ export async function loadStudentAllSlots(
       Date.parse(b.slot.scheduledStartTime),
   );
 }
+
+export type StudentResult = {
+  questionOrder: number;
+  finalScore: number;
+  feedback?: string | null;
+  publishedAt: string;
+};
+
+export async function getStudentResults(
+  token: string,
+  attemptId: string,
+  signal?: AbortSignal,
+): Promise<StudentResult[]> {
+  const result = await apiRequest(
+    `/api/v1/student/exams/${encodeURIComponent(attemptId)}/results`,
+    { token, signal },
+  );
+  if (!Array.isArray(result) || result.some((entry) =>
+    !entry || !Number.isInteger(entry.questionOrder) || entry.questionOrder < 1 ||
+    typeof entry.finalScore !== "number" || !Number.isFinite(entry.finalScore) ||
+    entry.finalScore < 0 || typeof entry.publishedAt !== "string" ||
+    !Number.isFinite(Date.parse(entry.publishedAt)) ||
+    (entry.feedback != null && typeof entry.feedback !== "string")
+  )) throw new ApiError("Dữ liệu điểm trả về không hợp lệ. Vui lòng thử lại.");
+  return result.sort((a, b) => a.questionOrder - b.questionOrder);
+}
