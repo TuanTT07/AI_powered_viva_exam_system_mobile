@@ -47,6 +47,13 @@ export function StudentScheduleScreen({
 }) {
   const {
     tab,
+    results,
+    selectedGrade,
+    expandedFeedback,
+    toggleFeedback,
+    gradesLoading,
+    gradesError,
+    retryGrades,
     filter,
     selected,
     item,
@@ -73,7 +80,6 @@ export function StudentScheduleScreen({
     return () => sub.remove();
   }, [selected, tab, onExit, setSelected, selectTab]);
 
-  const results = items.filter((entry) => entry.released);
 
   return (
     <View style={styles.root}>
@@ -83,10 +89,18 @@ export function StudentScheduleScreen({
           <Type style={s.eyebrow}>SINH VIÊN</Type>
         </View>
       </View>
+      {tab === "grades" && (
+        <View style={styles.gradesHeading}>
+          <Type accessibilityRole="header" aria-level={1} style={styles.gradesTitle}>
+            Điểm thi
+          </Type>
+          <Type style={styles.gradesSubtitle}>Tổng điểm đã công bố · Chạm để xem chi tiết</Type>
+        </View>
+      )}
       <ScrollView
         key={`${tab}-${selected}`}
         style={{ flex: 1 }}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, tab === "grades" && styles.gradesContent]}
         keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
@@ -113,7 +127,7 @@ export function StudentScheduleScreen({
               </Type>
               <Action label="Thử lại" onPress={retry} />
             </Surface>
-          ) : selected && item ? (
+          ) : selected && item && tab !== "grades" ? (
             <>
               <Pressable
                 accessibilityRole="button"
@@ -273,34 +287,85 @@ export function StudentScheduleScreen({
             </>
           ) : tab === "grades" ? (
             <>
-              <View style={s.section}>
-                <Type style={s.eyebrow}>KẾT QUẢ HỌC TẬP</Type>
-                <Type accessibilityRole="header" aria-level={1} style={s.h1}>
-                  Điểm thi
-                </Type>
-                <Type style={s.muted}>Kết quả đã được công bố.</Type>
-              </View>
-              {results.length ? (
+              {gradesLoading ? (
+                <View style={styles.loader}>
+                  <ActivityIndicator color={palette.blue} />
+                  <Type style={s.muted}>Đang tải điểm đã công bố…</Type>
+                </View>
+              ) : gradesError ? (
+                <Surface>
+                  <Type accessibilityRole="alert">{gradesError}</Type>
+                  <Action label="Thử lại" onPress={retryGrades} />
+                </Surface>
+              ) : selectedGrade ? (
+                <>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Quay lại danh sách điểm"
+                    onPress={() => setSelected("")}
+                    style={styles.back}
+                  >
+                    <Icon name="back" />
+                    <Type style={styles.feedbackToggleLabel}>Quay lại</Type>
+                  </Pressable>
+                  <View style={styles.gradeCard}>
+                    <View style={styles.gradeCardHeading}>
+                      <Type style={styles.courseCode}>{selectedGrade.exam.courseCode}</Type>
+                      <Type accessibilityRole="header" style={styles.examTitle}>{selectedGrade.exam.title}</Type>
+                      <Type style={styles.gradesSubtitle}>Tổng điểm đã công bố · {selectedGrade.total.toFixed(1)}</Type>
+                    </View>
+                    {selectedGrade.questions.map((result) => {
+                      const key = `${selectedGrade.slot.attemptId}-${result.questionOrder}`;
+                      const expanded = expandedFeedback === key;
+                      return (
+                        <View key={result.questionOrder} style={styles.questionResult}>
+                          <View style={styles.resultRow}>
+                            <Type style={styles.questionLabel}>Câu {result.questionOrder}</Type>
+                            <View style={styles.scoreBadge}>
+                              <Type style={styles.scoreValue}>{result.finalScore.toFixed(1)}</Type>
+                              <Type style={styles.scoreUnit}>điểm</Type>
+                            </View>
+                          </View>
+                          <Type style={styles.feedback} numberOfLines={expanded ? undefined : 3}>
+                            {result.feedback?.trim() || "Chưa có nhận xét từ giảng viên."}
+                          </Type>
+                          {!!result.feedback?.trim() && (
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel={`${expanded ? "Thu gọn" : "Xem đầy đủ"} nhận xét câu ${result.questionOrder}`}
+                              accessibilityState={{ expanded }}
+                              onPress={() => toggleFeedback(key)}
+                              style={({ pressed }) => [styles.feedbackToggle, { opacity: pressed ? 0.6 : 1 }]}
+                            >
+                              <Type style={styles.feedbackToggleLabel}>{expanded ? "Thu gọn" : "Xem đầy đủ"}</Type>
+                            </Pressable>
+                          )}
+                        </View>
+                      );
+                    })}
+                  </View>
+                </>
+              ) : results.length ? (
                 results.map((entry) => (
-                  <Surface key={entry.slot.attemptId}>
-                    <Type style={s.eyebrow}>{entry.exam.courseCode}</Type>
-                    <Type style={s.h2}>{entry.exam.title}</Type>
-                    <Type style={[s.h1, { color: palette.blue }]}>
-                      {entry.released!.score.toFixed(1)}
-                      <Type style={s.muted}> / 10</Type>
-                    </Type>
-                    <Action
-                      secondary
-                      label="Xem kết quả"
-                      onPress={() => setSelected(entry.slot.attemptId)}
-                    />
-                  </Surface>
+                  <Pressable
+                    key={entry.slot.attemptId}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${entry.exam.courseCode}, ${entry.exam.title}, tổng điểm đã công bố ${entry.total.toFixed(1)}. Xem chi tiết`}
+                    onPress={() => setSelected(entry.slot.attemptId)}
+                    style={({ pressed }) => [styles.gradeCard, styles.gradeSummary, { opacity: pressed ? 0.65 : 1 }]}
+                  >
+                    <Type style={styles.summaryCourseCode}>{entry.exam.courseCode}</Type>
+                    <View style={styles.summaryScore}>
+                      <Type style={styles.scoreValue}>{entry.total.toFixed(1)}</Type>
+                      <Icon name="arrow" size={18} color={palette.muted} />
+                    </View>
+                  </Pressable>
                 ))
               ) : (
                 <Empty
                   icon="score"
                   title="Chưa có dữ liệu điểm"
-                  description="Điểm đã công bố sẽ xuất hiện tại đây khi kết nối hệ thống chấm thi."
+                  description="Chưa có điểm được công bố cho các ca thi đã hoàn tất. Kéo xuống để làm mới."
                 />
               )}
             </>
@@ -365,7 +430,7 @@ export function StudentScheduleScreen({
           )}
         </Reveal>
       </ScrollView>
-      <View style={styles.connection}>
+      {tab !== "grades" && <View style={styles.connection}>
         <View
           style={[
             styles.dot,
@@ -378,6 +443,7 @@ export function StudentScheduleScreen({
             : "Chưa có ca thi nào được phân công"}
         </Type>
       </View>
+      }
       <View style={styles.navOuter}>
         <View accessibilityRole="tablist" style={styles.nav}>
           {tabs.map((entry) => (
@@ -441,6 +507,40 @@ const styles = StyleSheet.create({
     maxWidth: 620,
     alignSelf: "center",
   },
+  gradesHeading: {
+    paddingHorizontal: 24,
+    paddingTop: 18,
+    paddingBottom: 18,
+    gap: 4,
+    width: "100%",
+    maxWidth: 620,
+    alignSelf: "center",
+  },
+  gradesTitle: { fontFamily: "JakartaBold", fontSize: 26, lineHeight: 36, letterSpacing: -0.7 },
+  gradesSubtitle: { fontSize: 13, lineHeight: 21, color: palette.muted },
+  gradesContent: { paddingTop: 0, paddingHorizontal: 20 },
+  gradeCard: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#e5eaf0",
+    borderRadius: 18,
+    paddingHorizontal: 18,
+  },
+  gradeCardHeading: { paddingTop: 16, paddingBottom: 14, gap: 3 },
+  courseCode: { fontSize: 11, lineHeight: 18, color: palette.muted, letterSpacing: 0.4 },
+  examTitle: { fontFamily: "JakartaBold", fontSize: 17, lineHeight: 25, letterSpacing: -0.3 },
+  gradeSummary: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 18, gap: 16, minHeight: 72 },
+  summaryCourseCode: { flex: 1, fontFamily: "JakartaBold", fontSize: 14, lineHeight: 22 },
+  summaryScore: { flexDirection: "row", alignItems: "center", gap: 12 },
+  feedback: { fontSize: 13, lineHeight: 21, color: "#475569" },
+  feedbackToggle: { minHeight: 44, alignSelf: "flex-start", justifyContent: "center", paddingRight: 16 },
+  feedbackToggleLabel: { fontSize: 12, lineHeight: 20, color: palette.blue },
+  questionResult: { borderTopWidth: 1, borderTopColor: "#edf0f4", paddingVertical: 14, gap: 10 },
+  resultRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 },
+  questionLabel: { fontFamily: "JakartaBold", fontSize: 13, lineHeight: 22 },
+  scoreBadge: { flexDirection: "row", alignItems: "baseline", gap: 4, backgroundColor: palette.soft, borderRadius: 9, paddingHorizontal: 10, paddingVertical: 4 },
+  scoreValue: { fontFamily: "JakartaBold", fontSize: 20, lineHeight: 28, color: palette.blue, fontVariant: ["tabular-nums"] },
+  scoreUnit: { fontSize: 11, lineHeight: 18, color: palette.blue },
   loader: {
     paddingVertical: 48,
     alignItems: "center",

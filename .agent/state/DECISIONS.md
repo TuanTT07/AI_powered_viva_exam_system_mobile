@@ -67,3 +67,15 @@ User requested implementing advanced status filters for lecturers and packaging 
 
 
 
+
+## 2026-11-04 — Student grades API
+Use deployed GET /api/v1/student/exams/{attemptId}/results for COMPLETED attempts. Display published per-question scores and feedback only; no invented total/maxScore, no lecturer evaluation or local-storage fallback. Grade loading is isolated from schedule loading with cancellation, retry and pull-to-refresh.
+
+## 2026-11-04 — Cleaner student grades presentation
+Keep the grades title outside the scrolling list. Use feature-local white cards with a thin border, compact course/exam hierarchy, separate numeric score badges and short Vietnam-time publication dates. Feedback defaults to three lines with an accessible expand/collapse button. Hide the schedule connection footer on Grades; retain loading, retry, empty and refresh behavior. No shared surface or other feature redesign.
+
+## 2026-11-04 — Scores only
+User requested grades display only scores. Retain course/exam context and per-question scores; remove feedback, publication date and expand/collapse state from the Grades UI.
+
+## 2026-11-04 — Grade summary and detail
+User requested total + course code, opening question scores and short lecturer feedback. Sum published finalScore values in the student hook; explicitly label as total of published scores, since deployed StudentResult has no overall score, maxScore, weights or completeness indicator. One row per exam attempt (never merge attempts by course). Reuse selected attempt/back handling for grade details, distinct from schedule details. Render backend feedback at three lines with full-text expansion; do not generate or rewrite lecturer feedback. No publication dates in UI.

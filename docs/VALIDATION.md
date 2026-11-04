@@ -42,3 +42,26 @@ Final typecheck, existing 14 boundary/schedule assertions, web export and whites
 - Verified backend source contract, including mustChangePassword and fresh-login-after-password-change. Actual public invalid-login request returned401; browser preflight from localhost:8082 returned403. Loopback preview proxy forwards real auth only; invalid-login through http://localhost:8082/backend/api/auth/login returned401 in0.40s. Static preview returned200. This confirms request reachability/error handling, not successful real-account authentication.
 - Android arm64-v8a assembleRelease with SecureStore succeeded. No new emulator, physical-device or TalkBack run. Session restoration/expiry, role routing, actual profile, logout and password change are implemented; successful account login/persistence/change-password against a real account remain unverified because no valid test credentials were provided.
 - Schedule/grade APIs remain disconnected. No runtime fake identities, mock auth or sample records were introduced. API documents: docs/AUTH_API.md. The preceding UI-only notes are historical and superseded for authentication.
+
+## 2026-11-04 — Mobile student published grades
+- `npm run typecheck`: passed.
+- `npm run build`: passed (Expo web export).
+- Deployed `/v3/api-docs`: confirmed StudentResult contract and published-results endpoint.
+- GET `/api/v1/student/exams/00000000-0000-0000-0000-000000000000/results` without credentials: HTTP 401, expected authentication envelope. Does not establish authenticated result behavior.
+- No authenticated account or Android emulator/device validation used; per-question data/release visibility still needs authenticated device verification.
+- Unit tests and ui-test not run per user preference.
+
+## 2026-11-04 — Student grades visual cleanup
+Feature-local presentation update based on supplied Android screenshot. No runtime sample grades added. Unit tests and ui-test remain disabled. Native rendering of the new layout has not been verified on emulator/device in this change.
+- Final `npm run typecheck` and `npm run build`: passed.
+
+## 2026-11-04 — Grade summary/detail navigation
+Rechecked deployed OpenAPI: StudentResult still supplies questionOrder, finalScore, feedback and publishedAt only. List uses sum of published scores with explicit label; details render individual scores and feedback. No authenticated/device runtime verification, unit tests or ui-test performed.
+- Final `npm run typecheck`, `npm run build` and `git diff --check`: passed.
+
+## 2026-11-04 — Latest release APK
+- Built current mobile working tree including grade summary/detail changes with `ANDROID_HOME=/Users/ducanh/Library/Android/sdk ANDROID_SDK_ROOT=/Users/ducanh/Library/Android/sdk npm run android:build`: BUILD SUCCESSFUL.
+- Output: android/app/build/outputs/apk/release/app-release.apk (~72 MB).
+- `apksigner verify`: passed.
+- SHA-256: aeca4a12fb710a0b0b2cbad0e32f38f31c470446138a6cb8c71f30a5ee24a124.
+- APK was not installed or exercised on emulator/device in this build task.
