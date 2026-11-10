@@ -211,6 +211,7 @@ export async function loadStudentAllSlots(
 export type StudentResult = {
   questionOrder: number;
   finalScore: number;
+  maxScore: number;
   feedback?: string | null;
   publishedAt: string;
 };
@@ -227,7 +228,8 @@ export async function getStudentResults(
   if (!Array.isArray(result) || result.some((entry) =>
     !entry || !Number.isInteger(entry.questionOrder) || entry.questionOrder < 1 ||
     typeof entry.finalScore !== "number" || !Number.isFinite(entry.finalScore) ||
-    entry.finalScore < 0 || typeof entry.publishedAt !== "string" ||
+    entry.finalScore < 0 || typeof entry.maxScore !== "number" || !Number.isFinite(entry.maxScore) ||
+    entry.maxScore <= 0 || entry.finalScore > entry.maxScore || typeof entry.publishedAt !== "string" ||
     !Number.isFinite(Date.parse(entry.publishedAt)) ||
     (entry.feedback != null && typeof entry.feedback !== "string")
   )) throw new ApiError("Dữ liệu điểm trả về không hợp lệ. Vui lòng thử lại.");
