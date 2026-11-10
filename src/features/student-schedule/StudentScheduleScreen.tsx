@@ -94,7 +94,7 @@ export function StudentScheduleScreen({
           <Type accessibilityRole="header" aria-level={1} style={styles.gradesTitle}>
             Điểm thi
           </Type>
-          <Type style={styles.gradesSubtitle}>Tổng điểm đã công bố · Chạm để xem chi tiết</Type>
+          <Type style={styles.gradesSubtitle}>Điểm trung bình /10 · Chạm để xem chi tiết</Type>
         </View>
       )}
       <ScrollView
@@ -312,7 +312,7 @@ export function StudentScheduleScreen({
                     <View style={styles.gradeCardHeading}>
                       <Type style={styles.courseCode}>{selectedGrade.exam.courseCode}</Type>
                       <Type accessibilityRole="header" style={styles.examTitle}>{selectedGrade.exam.title}</Type>
-                      <Type style={styles.gradesSubtitle}>Tổng điểm đã công bố · {selectedGrade.total.toFixed(1)}</Type>
+                      <Type style={styles.gradesSubtitle}>Điểm trung bình · {selectedGrade.average.toFixed(1)} /10</Type>
                     </View>
                     {selectedGrade.questions.map((result) => {
                       const key = `${selectedGrade.slot.attemptId}-${result.questionOrder}`;
@@ -323,7 +323,7 @@ export function StudentScheduleScreen({
                             <Type style={styles.questionLabel}>Câu {result.questionOrder}</Type>
                             <View style={styles.scoreBadge}>
                               <Type style={styles.scoreValue}>{result.finalScore.toFixed(1)}</Type>
-                              <Type style={styles.scoreUnit}>điểm</Type>
+                              <Type style={styles.scoreUnit}>/ {result.maxScore}</Type>
                             </View>
                           </View>
                           <Type style={styles.feedback} numberOfLines={expanded ? undefined : 3}>
@@ -350,13 +350,14 @@ export function StudentScheduleScreen({
                   <Pressable
                     key={entry.slot.attemptId}
                     accessibilityRole="button"
-                    accessibilityLabel={`${entry.exam.courseCode}, ${entry.exam.title}, tổng điểm đã công bố ${entry.total.toFixed(1)}. Xem chi tiết`}
+                    accessibilityLabel={`${entry.exam.courseCode}, ${entry.exam.title}, điểm trung bình ${entry.average.toFixed(1)} trên 10. Xem chi tiết`}
                     onPress={() => setSelected(entry.slot.attemptId)}
                     style={({ pressed }) => [styles.gradeCard, styles.gradeSummary, { opacity: pressed ? 0.65 : 1 }]}
                   >
                     <Type style={styles.summaryCourseCode}>{entry.exam.courseCode}</Type>
                     <View style={styles.summaryScore}>
-                      <Type style={styles.scoreValue}>{entry.total.toFixed(1)}</Type>
+                      <Type style={styles.scoreValue}>{entry.average.toFixed(1)}</Type>
+                      <Type style={styles.scoreUnit}>/10</Type>
                       <Icon name="arrow" size={18} color={palette.muted} />
                     </View>
                   </Pressable>

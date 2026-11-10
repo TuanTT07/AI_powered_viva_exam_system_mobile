@@ -70,13 +70,13 @@ export function useStudentOverview(
     filter === "history" ? isHistory(item) : !isHistory(item),
   );
 
-  // ponytail: sum only published scores; the API provides no aggregate or grading weights.
+  // Equal-weight average on /10, matching the web result calculation.
   const results = items.flatMap((entry) => {
     const questions = grades[entry.slot.attemptId];
     return questions?.length ? [{
       ...entry,
       questions,
-      total: questions.reduce((sum, question) => sum + question.finalScore, 0),
+      average: questions.reduce((sum, question) => sum + question.finalScore / question.maxScore * 10, 0) / questions.length,
     }] : [];
   });
 
